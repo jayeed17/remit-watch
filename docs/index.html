@@ -8,170 +8,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --paper:#edeee8;
-    --ink:#17211d;
-    --ink-soft:#3c453e;      /* readable secondary text, ~8.5:1 on paper */
-    --muted:#5e675f;         /* decoration only: gridlines, dividers — never text */
-    --rule:#c7cac1;
-    --kept-fill:#9e2b3b;     /* decorative bar/legend colour, not used for text */
-    --kept-text:#7a1f2c;     /* readable red text, ~8.7:1 on paper */
-    --best-fill:#1e6e52;
-    --best-text:#14503b;     /* readable green text, ~8:1 on paper */
-    --step:clamp(1rem,2.5vw,1.4rem);
-    color-scheme:light;
-  }
-  *{box-sizing:border-box}
-  html{-webkit-text-size-adjust:100%;font-size:20px}
-  body{
-    margin:0;background:var(--paper);color:var(--ink);
-    font-family:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
-    font-size:1rem;line-height:1.55;
-    font-variant-numeric:tabular-nums;
-  }
-  .wrap{max-width:46rem;margin:0 auto;padding:var(--step) var(--step) 4rem}
-  a{color:var(--ink);text-underline-offset:.15em}
-  h1,h2{font-family:inherit}
-
-  :is(a,button,input,[tabindex]):focus-visible{
-    outline:3px solid var(--ink);outline-offset:3px;border-radius:.3rem;
-  }
-
-  /* ---- masthead ---- */
-  .mast{padding:2.25rem 0 1.5rem}
-  h1{
-    margin:0;font-size:clamp(1.8rem,5.5vw,2.6rem);font-weight:700;
-    letter-spacing:-.03em;line-height:1.1;max-width:16ch;
-  }
-  .sub{margin:.85rem 0 0;color:var(--ink-soft);font-size:1.05rem;max-width:42ch}
-
-  /* ---- section headings ---- */
-  h2{
-    margin:2.75rem 0 1rem;font-size:1.15rem;font-weight:700;letter-spacing:-.01em;
-    padding-bottom:.5rem;border-bottom:2px solid var(--ink);
-  }
-  .prompt{margin:0 0 .75rem;font-size:1.1rem;font-weight:700}
-
-  /* ---- country picker ---- */
-  .countries{
-    display:flex;flex-wrap:wrap;gap:.75rem;margin:0;padding:0;
-  }
-  .country-btn{
-    flex:1 1 8.5rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;
-    min-height:5.5rem;padding:.85rem .5rem;font:inherit;font-size:1rem;font-weight:600;
-    color:var(--ink);background:var(--paper);border:2px solid var(--ink);border-radius:.75rem;
-    cursor:pointer;text-align:center;
-  }
-  .country-btn .flagbox{width:2.75rem;height:1.85rem;flex:none}
-  .country-btn .flagbox svg{width:100%;height:100%;display:block;border:1px solid var(--ink)}
-  .country-btn .flagFallback{
-    width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-    border:2px solid var(--ink);border-radius:.2rem;font-weight:700;font-size:.95rem;
-  }
-  .country-btn[aria-pressed="true"]{
-    background:var(--ink);color:var(--paper);border-width:4px;padding:calc(.85rem - 2px) calc(.5rem - 2px);
-  }
-  .country-btn[aria-pressed="true"] .flagbox svg,
-  .country-btn[aria-pressed="true"] .flagFallback{border-color:var(--paper)}
-
-  /* ---- amount picker ---- */
-  .amtpresets{display:flex;flex-wrap:wrap;gap:.75rem;margin:0 0 1rem;padding:0}
-  .amtbtn{
-    min-width:5.5rem;min-height:3rem;padding:.6rem 1.1rem;font:inherit;font-size:1.05rem;font-weight:700;
-    color:var(--ink);background:var(--paper);border:2px solid var(--ink);border-radius:.6rem;cursor:pointer;
-  }
-  .amtbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-width:4px;padding:calc(.6rem - 2px) calc(1.1rem - 2px)}
-  .amtcustom{display:flex;align-items:center;gap:.6rem;font-size:1rem}
-  .amtcustom label{font-weight:600}
-  .amtcustom .box{
-    display:inline-flex;align-items:center;gap:.25rem;border:2px solid var(--ink);
-    border-radius:.6rem;padding:.4rem .7rem;background:#fff;
-  }
-  .amtcustom input{
-    font:inherit;font-size:1.05rem;font-variant-numeric:tabular-nums;color:var(--ink);
-    background:transparent;border:0;width:5ch;-moz-appearance:textfield;min-height:2.5rem;
-  }
-  .amtcustom input::-webkit-outer-spin-button,
-  .amtcustom input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-
-  /* ---- the plain-language answer ---- */
-  .lead{
-    margin:2.25rem 0 0;font-size:clamp(1.2rem,3.6vw,1.5rem);line-height:1.5;font-weight:600;
-    letter-spacing:-.01em;
-  }
-  .lead b{font-weight:700}
-
-  /* ---- shortfall bar: the one loud picture ---- */
-  .shortfall{margin:1.5rem 0 0}
-  .bar{
-    position:relative;display:flex;height:4.5rem;border:2px solid var(--ink);
-    overflow:hidden;background:var(--paper);
-  }
-  .bar .arrives{background:var(--ink)}
-  .bar .kept{background:var(--kept-fill);flex:1 1 auto}
-  .bar span{transition:width .35s cubic-bezier(.2,.7,.3,1)}
-  .legend{
-    display:flex;flex-wrap:wrap;gap:.5rem 2rem;margin:.85rem 0 0;
-  }
-  .legend > div{font-size:.95rem;color:var(--ink-soft)}
-  .legend b{display:block;color:var(--ink);font-size:1.4rem;font-weight:700;letter-spacing:-.02em}
-  .legend .loud b{color:var(--kept-text)}
-
-  /* ---- ranked rows ---- */
-  .rows{margin:0;padding:0;list-style:none}
-  .row{padding:1rem 0;border-bottom:2px solid var(--rule)}
-  .name{font-size:1.1rem;font-weight:700;letter-spacing:-.01em}
-  .bank{font-weight:400;color:var(--ink-soft);font-size:.95rem}
-  .tag{
-    display:inline-block;margin-left:.6rem;font-size:.85rem;font-weight:700;
-    border:2px solid currentColor;border-radius:.3rem;padding:.1em .5em;vertical-align:.2em;
-  }
-  .tag.good{color:var(--best-text)}
-  .tag.bad{color:var(--kept-text)}
-  .stats{display:flex;flex-wrap:wrap;gap:.4rem 1.5rem;margin:.5rem 0 0;font-size:1.05rem}
-  .stats .stat b{font-variant-numeric:tabular-nums}
-  .stats .loss b{color:var(--kept-text)}
-  .detail{margin:.4rem 0 0;color:var(--ink-soft);font-size:.95rem}
-
-  /* ---- charts (shared) ---- */
-  .chart{width:100%;height:auto;overflow:visible;margin-top:.75rem}
-  .chart .axis{stroke:var(--rule);stroke-width:1}
-  .chart .line{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
-  .chart .axisText{font-size:21px;fill:var(--ink-soft)}
-  .chart .barName{font-size:24px;font-weight:700;fill:var(--ink)}
-  .chart .barAmt{font-size:21px;fill:var(--ink-soft)}
-  @media (prefers-reduced-motion:reduce){.bar span{transition:none}}
-  .keys{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;margin-top:.75rem;font-size:1.05rem;color:var(--ink)}
-  .keys i{display:inline-block;width:.85rem;height:.85rem;margin-right:.4rem;vertical-align:-.08em;border-radius:.15rem}
-  .caption{margin:.75rem 0 0;color:var(--ink-soft);font-size:.95rem;max-width:42ch}
-
-  .note{margin:2.5rem 0 0;color:var(--ink-soft);font-size:.95rem;max-width:44ch}
-  .state{padding:2rem 0;color:var(--ink-soft);font-size:1.05rem}
-  .state b{display:block;color:var(--ink);font-weight:700;font-size:1.15rem;margin-bottom:.3rem}
-  [hidden]{display:none!important}
-
-  /* ---- footer ---- */
-  .site-footer{
-    margin-top:3.5rem;padding-top:1.5rem;border-top:2px solid var(--rule);
-    font-size:.95rem;color:var(--ink-soft);
-  }
-  .site-footer p{margin:.4rem 0}
-  .site-footer a{font-weight:700;text-decoration:underline;display:inline-flex;align-items:center;min-height:48px}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main class="wrap">
 
+  <nav class="pagenav" aria-label="Pages">
+    <a href="index.html" aria-current="page">Compare providers</a>
+    <a href="compare.html">Compare countries</a>
+  </nav>
+
   <header class="mast">
     <h1>Sending money home costs more than the fee.</h1>
     <p class="sub">Every provider also changes your exchange rate in its own favour. Fee plus that
-      hidden cost is the real price — and that's what this page checks every hour.</p>
+      hidden cost is the real price — and that's what this page checks.</p>
   </header>
 
   <div id="app" hidden>
-    <h2 style="margin-top:1.5rem">Where are you sending money?</h2>
+    <h2 style="margin-top:1.25rem">Where are you sending money?</h2>
     <div class="countries" id="countries" role="group" aria-label="Choose the country you're sending to"></div>
+    <button type="button" class="btn morebtn" id="moreBtn" aria-expanded="false" hidden>Show more countries</button>
+    <div class="countries more" id="countriesMore" role="group" aria-label="More countries" hidden></div>
 
     <h2>How much are you sending?</h2>
     <div class="amtpresets" id="amtpresets" role="group" aria-label="Choose an amount in US dollars"></div>
@@ -185,6 +42,7 @@
 
     <section id="result" aria-live="polite" aria-atomic="true">
       <p class="lead" id="lead"></p>
+      <p class="freshness" id="freshness"></p>
 
       <div class="shortfall">
         <div class="bar">
@@ -199,6 +57,11 @@
       </div>
     </section>
 
+    <div class="share">
+      <button type="button" class="btn" id="shareBtn">Copy link to share this</button>
+      <span id="shareStatus" aria-live="polite"></span>
+    </div>
+
     <h2>Every option, best first</h2>
     <ul class="rows" id="rows"></ul>
     <div id="providerBar"></div>
@@ -206,10 +69,14 @@
     <h2 id="histTitle">Cost to send, last 30 days</h2>
     <div id="hist"></div>
 
-    <h2>Which country costs the most to send to right now</h2>
-    <div id="compareChart"></div>
+    <h2 id="winnerTitle">Does the cheapest option change</h2>
+    <div id="winnerHistory"></div>
 
     <p class="note" id="note"></p>
+
+    <p class="share">
+      <a class="btn" href="compare.html">See which country costs the most to send to right now →</a>
+    </p>
   </div>
 
   <div class="state" id="loading">Loading the latest prices.</div>
@@ -222,75 +89,95 @@
   <footer class="site-footer">
     <p>Built by <a href="https://jayeed17.github.io">Zayeed Bin Kabir</a>. Source code on
       <a href="https://github.com/jayeed17/remit-watch">GitHub</a>.</p>
-    <p>Prices are checked every hour. This page reports a measurement — it is not financial advice.</p>
+    <p>Prices are checked regularly. This page reports a measurement — it is not financial advice.</p>
   </footer>
 
 </main>
 
+<script src="app.js"></script>
 <script>
-const $ = (id) => document.getElementById(id);
-const usd = (n) => n.toLocaleString("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0});
-const local = (n, c) => n.toLocaleString("en-US", {maximumFractionDigits:0}) + " " + c;
-const esc = (s) => String(s).replace(/[<>&"]/g, ch => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[ch]));
-
-const C = {ink:"#17211d", inkSoft:"#3c453e", kept:"#9e2b3b", keptText:"#7a1f2c", best:"#1e6e52", bestText:"#14503b"};
-const CW = 340; // shared chart viewBox width — keeps text scaling predictable across charts
-
-// Simple geometric flags — no emoji, each has a <title> for screen readers.
-const FLAGS = {
-  BDT: `<title>Flag of Bangladesh</title><rect width="30" height="20" fill="#006a4e"/><circle cx="13" cy="10" r="6" fill="#f42a41"/>`,
-  INR: `<title>Flag of India</title><rect width="30" height="20" fill="#fff"/><rect width="30" height="6.67" fill="#ff9933"/><rect y="13.33" width="30" height="6.67" fill="#138808"/><circle cx="15" cy="10" r="2.3" fill="none" stroke="#0000a0" stroke-width="0.7"/>`,
-  PKR: `<title>Flag of Pakistan</title><rect width="30" height="20" fill="#01411c"/><rect width="7.5" height="20" fill="#fff"/><circle cx="20" cy="9" r="4" fill="#fff"/><circle cx="21.6" cy="8" r="3.4" fill="#01411c"/><rect x="23.3" y="8.3" width="1.4" height="1.4" fill="#fff" transform="rotate(45 24 9)"/>`,
-  MXN: `<title>Flag of Mexico</title><rect width="30" height="20" fill="#fff"/><rect width="10" height="20" fill="#006341"/><rect x="20" width="10" height="20" fill="#ce1126"/>`,
-  PHP: `<title>Flag of the Philippines</title><rect width="30" height="20" fill="#0038a8"/><rect y="10" width="30" height="10" fill="#ce1126"/><path d="M0 0 L13 10 L0 20 Z" fill="#fff"/><circle cx="5" cy="10" r="2.2" fill="#fcd116"/>`,
-  DOP: `<title>Flag of the Dominican Republic</title><rect width="30" height="20" fill="#fff"/><rect width="13" height="8" fill="#002d62"/><rect x="17" width="13" height="8" fill="#ce1126"/><rect width="13" y="12" height="8" fill="#ce1126"/><rect x="17" y="12" width="13" height="8" fill="#002d62"/>`,
-};
-
-function flagMarkup(dst, country){
-  if (FLAGS[dst]) return `<svg class="flag" viewBox="0 0 30 20" aria-hidden="true">${FLAGS[dst]}</svg>`;
-  return `<span class="flagFallback" aria-hidden="true">${esc(dst.slice(0,2).toUpperCase())}</span>`;
-}
-
-let SNAP = null, HIST = {}, amount = 500, selectedIndex = 0;
+let SNAP = null, amount = 500, selectedIndex = 0;
 const PRESETS = [100, 200, 500, 1000];
 
 async function boot(){
   try {
-    const r = await fetch("data/latest.json", {cache:"no-store"});
-    if (!r.ok) throw new Error(r.status);
-    SNAP = await r.json();
-    if (!SNAP.corridors?.length) throw new Error("empty");
+    SNAP = await fetchSnapshot();
   } catch {
     $("loading").hidden = true; $("error").hidden = false; return;
   }
 
-  $("countries").innerHTML = SNAP.corridors.map((c,i) => `
-    <button type="button" class="country-btn" data-i="${i}" aria-pressed="${i===0}">
-      <span class="flagbox">${flagMarkup(c.dst, c.country)}</span>
-      <span>${esc(c.country)}</span>
-    </button>`).join("");
-  [...$("countries").querySelectorAll("button")].forEach(b => b.onclick = () => {
+  applyHash();
+
+  const core = [], more = [];
+  SNAP.corridors.forEach((c,i) => {
+    const btn = `
+      <button type="button" class="country-btn" data-i="${i}" aria-pressed="${i===selectedIndex}">
+        <span class="flagbox">${flagMarkup(c.dst)}</span>
+        <span>${esc(c.country)}</span>
+      </button>`;
+    (c.tier === "extended" ? more : core).push(btn);
+  });
+  $("countries").innerHTML = core.join("");
+  $("countriesMore").innerHTML = more.join("");
+  [...document.querySelectorAll(".country-btn")].forEach(b => b.onclick = () => {
     selectedIndex = +b.dataset.i; syncCountryUI(); render();
   });
 
+  if (more.length) {
+    $("moreBtn").hidden = false;
+    $("moreBtn").onclick = () => {
+      const open = $("countriesMore").hidden;
+      $("countriesMore").hidden = !open;
+      $("moreBtn").setAttribute("aria-expanded", String(open));
+      $("moreBtn").textContent = open ? "Show fewer countries" : "Show more countries";
+    };
+    if (SNAP.corridors[selectedIndex]?.tier === "extended") $("moreBtn").click();
+  }
+
   $("amtpresets").innerHTML = PRESETS.map(v => `
-    <button type="button" class="amtbtn" data-amt="${v}" aria-pressed="${v===amount}">$${v}</button>`).join("");
+    <button type="button" class="btn amtbtn" data-amt="${v}" aria-pressed="${v===amount}">$${v}</button>`).join("");
   [...$("amtpresets").querySelectorAll("button")].forEach(b => b.onclick = () => setAmount(+b.dataset.amt));
   $("amount").oninput = (e) => setAmount(+e.target.value);
 
-  const when = new Date(SNAP.generated);
+  $("shareBtn").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      $("shareStatus").textContent = "Link copied — paste it anywhere to share this comparison.";
+    } catch {
+      $("shareStatus").textContent = `Couldn't copy automatically — the link in your address bar is ${location.href}`;
+    }
+    setTimeout(() => { $("shareStatus").textContent = ""; }, 4000);
+  };
+
   $("note").textContent =
-    `Prices were checked ${when.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}. ` +
-    `We check exact amounts of $${SNAP.brackets.join(", $")} and use the one closest to what you asked ` +
-    `for, so other amounts are close but not exact. This compares sending into a bank account — ` +
-    `picking up cash in person usually costs more.`;
+    `Corridors update on two schedules — some more often than others — so freshness varies; ` +
+    `each result above shows exactly when it was checked. We check exact amounts of ` +
+    `$${SNAP.brackets.join(", $")} and use the one closest to what you asked for, so other amounts ` +
+    `are close but not exact. This compares sending into a bank account — picking up cash in person ` +
+    `usually costs more.`;
 
   $("loading").hidden = true; $("app").hidden = false;
   syncCountryUI(); syncAmountUI(); render();
 }
 
+// The URL hash is the shareable state: #DST-AMOUNT, e.g. #NPR-1000. Applied
+// once on load (before defaults are locked in) and kept current on every
+// render, so the address bar always matches what's on screen.
+function applyHash(){
+  const m = /^#?([A-Za-z]{3})-(\d+)$/.exec(decodeURIComponent(location.hash));
+  if (!m) return;
+  const i = SNAP.corridors.findIndex(c => c.dst === m[1].toUpperCase());
+  if (i === -1) return;
+  selectedIndex = i;
+  amount = Math.max(10, Math.min(5000, Math.round(+m[2]) || amount));
+}
+function syncHash(){
+  const c = SNAP.corridors[selectedIndex];
+  history.replaceState(null, "", `#${c.dst}-${amount}`);
+}
+
 function syncCountryUI(){
-  [...$("countries").querySelectorAll("button")].forEach(b => {
+  [...document.querySelectorAll(".country-btn")].forEach(b => {
     b.setAttribute("aria-pressed", String(+b.dataset.i === selectedIndex));
   });
 }
@@ -306,26 +193,6 @@ function setAmount(v){
   syncAmountUI(); render();
 }
 
-function nearestBracket(quotes, amt){
-  const keys = Object.keys(quotes).map(Number).sort((a,b)=>a-b);
-  return String(keys.reduce((best,k) =>
-    Math.abs(k-amt) < Math.abs(best-amt) ? k : best, keys[0]));
-}
-
-// The JSON's "lost" field is in the destination currency, not USD — convert
-// using the ratio (lost/ideal), which is currency-independent, before ever
-// showing a dollar figure to the user.
-function rowsFor(c, amt){
-  const ideal = amt * c.mid;
-  return (c.quotes[nearestBracket(c.quotes, amt)] || [])
-    .map(q => {
-      const received = Math.max(0, (amt - q.fee) * q.rate);
-      const lost = ideal - received;
-      return {...q, received, usdLost: amt * (lost / ideal)};
-    })
-    .sort((a,b) => a.usdLost - b.usdLost);
-}
-
 function render(){
   const c = SNAP.corridors[selectedIndex];
   const rows = rowsFor(c, amount);
@@ -333,13 +200,16 @@ function render(){
   const ideal = amount * c.mid;
   const best = rows[0], worst = rows[rows.length-1];
 
+  syncHash();
+
   $("lead").innerHTML =
     `Send ${usd(amount)} to ${esc(c.country)} today and <b>${esc(best.provider)}</b> gets the most ` +
-    `money there. The worst option costs you <b>${usd(Math.max(0, worst.usdLost-best.usdLost))}</b> more.`;
+    `money there. The worst option costs you <b>${usdLoss(worst.usdLost-best.usdLost)}</b> more.`;
+  $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
 
   $("barArrives").style.width = (100 * best.received / ideal).toFixed(2) + "%";
   $("valArrives").textContent = local(best.received, c.dst);
-  $("valKept").textContent = usd(best.usdLost);
+  $("valKept").textContent = usdLoss(best.usdLost);
   $("valIdeal").textContent = local(ideal, c.dst);
   $("lblProvider").textContent = best.provider;
 
@@ -352,15 +222,14 @@ function render(){
         <span class="name">${esc(q.provider)}${bank}${tag}</span>
         <div class="stats">
           <span class="stat"><b>${local(q.received, c.dst)}</b> arrives</span>
-          <span class="stat loss"><b>${usd(q.usdLost)}</b> you lose</span>
+          <span class="stat loss"><b>${usdLoss(q.usdLost)}</b> you lose</span>
         </div>
         <p class="detail">Exchange rate ${q.rate.toLocaleString("en-US",{maximumFractionDigits:2})} · Fee ${usd(q.fee)}</p>
       </li>`;
   }).join("");
 
   drawProviderBar(c, rows, amount, ideal);
-  drawHistory(c);
-  drawCountryCompare(amount);
+  drawHistorySection(c);
 }
 
 function drawProviderBar(c, rows, amt, ideal){
@@ -373,7 +242,7 @@ function drawProviderBar(c, rows, amt, ideal){
     const bank = (q.kind && q.kind !== "moneyTransferProvider") ? " (a bank)" : "";
     return `
       <text x="0" y="${y+18}" class="barName">${esc(q.provider)}${esc(bank)}</text>
-      <text x="0" y="${y+40}" class="barAmt">${esc(local(q.received,c.dst))} arrives · ${esc(usd(q.usdLost))} kept</text>
+      <text x="0" y="${y+40}" class="barAmt">${esc(local(q.received,c.dst))} arrives · ${esc(usdLoss(q.usdLost))} kept</text>
       <rect x="0" y="${y+48}" width="${arrivesW.toFixed(1)}" height="22" fill="${C.ink}"/>
       <rect x="${arrivesW.toFixed(1)}" y="${y+48}" width="${keptW.toFixed(1)}" height="22" fill="${C.kept}"/>`;
   }).join("");
@@ -387,21 +256,20 @@ function drawProviderBar(c, rows, amt, ideal){
       arrives. The red part is what the provider keeps.</p>`;
 }
 
-async function drawHistory(c){
-  const key = `${c.src}-${c.dst}`;
-  $("histTitle").textContent = `Cost to send to ${c.country}, last 30 days`;
-  if (!(key in HIST)) {
-    try {
-      const r = await fetch(`data/history/${key}.json`, {cache:"no-store"});
-      HIST[key] = r.ok ? await r.json() : [];
-    } catch { HIST[key] = []; }
-  }
-  const h = HIST[key];
+async function drawHistorySection(c){
+  const h = await fetchHistory(`${c.src}-${c.dst}`);
   if (SNAP.corridors[selectedIndex] !== c) return;
 
+  drawHistory(c, h);
+  drawWinnerHistory(c, h);
+}
+
+function drawHistory(c, h){
+  $("histTitle").textContent = `Cost to send to ${c.country}, last 30 days`;
+
   if (h.length < 3) {
-    $("hist").innerHTML = `<p class="state">Not enough history yet — this fills in as the
-      hourly check runs. ${h.length} of 3 readings so far.</p>`;
+    $("hist").innerHTML = `<p class="state">Not enough history yet — this fills in as checks
+      run. ${h.length} of 3 readings so far.</p>`;
     return;
   }
 
@@ -426,7 +294,7 @@ async function drawHistory(c){
     `<line class="axis" x1="${P.l}" y1="${y(v)}" x2="${W-P.r}" y2="${y(v)}"/>
      <text class="axisText" x="0" y="${y(v)+7}">${v.toFixed(1)}%</text>`).join("");
 
-  const fmt = t => new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  const fmt = t => new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"});
   $("hist").innerHTML = `
     <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
          aria-label="Share of the transfer each provider has kept, day by day, over the last 30 days">
@@ -440,40 +308,65 @@ async function drawHistory(c){
       the last 30 days. Lower lines are better.</p>`;
 }
 
-function drawCountryCompare(amt){
-  // Round to whole dollars once, then size AND label every bar from that same
-  // rounded number — otherwise two countries can show the same "$3" label
-  // with visibly different bar lengths, which breaks the visual-text match
-  // this audience relies on.
-  const items = SNAP.corridors.map(c => {
-    const rows = rowsFor(c, amt);
-    return rows.length
-      ? {country: c.country, displayLost: Math.max(0, Math.round(rows[0].usdLost)), isCurrent: c === SNAP.corridors[selectedIndex]}
-      : null;
-  }).filter(Boolean).sort((a,b) => b.displayLost - a.displayLost);
+const MIN_WINNER_DAYS = 3;
 
-  const max = Math.max(...items.map(it => it.displayLost), 1);
+// One entry per calendar day (the day's last reading), so this answers "does
+// the cheapest option change day to day" rather than swinging hour to hour.
+function dailyWinners(h){
+  const byDay = new Map();
+  for (const p of h) {
+    const day = p.ts.slice(0, 10);
+    if (!byDay.has(day) || p.ts > byDay.get(day).ts) byDay.set(day, p);
+  }
+  return [...byDay.entries()].sort(([a],[b]) => a < b ? -1 : 1).map(([day, p]) => {
+    const entries = Object.entries(p.providers);
+    const [provider, pct] = entries.reduce((best, e) => e[1] < best[1] ? e : best, entries[0]);
+    return {day, provider, pct};
+  });
+}
+
+function drawWinnerHistory(c, h){
+  $("winnerTitle").textContent = `Does the cheapest option to ${c.country} change`;
+  const days = dailyWinners(h);
+
+  if (days.length < MIN_WINNER_DAYS) {
+    $("winnerHistory").innerHTML = `<p class="state">This needs a few days of history to show
+      whether the cheapest option changes — right now every check is bunched into the same
+      day or two. We have ${days.length} day${days.length===1?"":"s"} so far; check back once
+      there are at least ${MIN_WINNER_DAYS}.</p>`;
+    return;
+  }
+
+  let changes = 0;
   const rowH = 66, top = 10;
-  const H = top + items.length*rowH + 6;
+  const H = top + days.length*rowH + 6;
+  const maxPct = Math.max(...days.map(d => d.pct), 0.01);
+  const fmt = d => new Date(d + "T00:00:00Z").toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"});
 
-  const bars = items.map((it,i) => {
+  const bars = days.map((d,i) => {
     const y = top + i*rowH;
-    const w = Math.max(2, (it.displayLost/max) * CW);
-    const label = (it.isCurrent ? "Your pick — " : "") + it.country;
+    const changed = i > 0 && d.provider !== days[i-1].provider;
+    if (changed) changes++;
+    const fill = i === 0 ? C.inkSoft : (changed ? C.keptText : C.bestText);
+    const w = Math.max(2, (d.pct/maxPct) * CW);
     return `
-      <text x="0" y="${y+18}" class="barName" font-weight="${it.isCurrent ? 700 : 600}">${esc(label)}</text>
-      <text x="0" y="${y+40}" class="barAmt">${esc(usd(it.displayLost))} lost with the best option there</text>
-      <rect x="0" y="${y+48}" width="${w.toFixed(1)}" height="22" fill="${it.isCurrent ? C.keptText : C.inkSoft}"/>`;
+      <text x="0" y="${y+18}" class="barName">${esc(fmt(d.day))}</text>
+      <text x="0" y="${y+40}" class="barAmt">${esc(d.provider)} was cheapest · lost ${d.pct.toFixed(1)}%</text>
+      <rect x="0" y="${y+48}" width="${w.toFixed(1)}" height="22" fill="${fill}"/>`;
   }).join("");
 
-  $("compareChart").innerHTML = `
+  const caption = changes === 0
+    ? `Every day for the last ${days.length} days, ${esc(days[0].provider)} has been the cheapest way
+       to send to ${esc(c.country)}. You don't need to re-check daily — it's been stable.`
+    : `The cheapest provider changed on ${changes} of the last ${days.length-1} days. Red bars mark a
+       change from the day before, green means it stayed the same. Worth checking before you send.`;
+
+  $("winnerHistory").innerHTML = `
     <svg class="chart" viewBox="0 0 ${CW} ${H}" role="img"
-         aria-label="Comparing the cheapest available option for each country, sending ${esc(usd(amt))} today">
+         aria-label="Which provider was cheapest to ${esc(c.country)} each day, and whether it changed">
       ${bars}
     </svg>
-    <p class="caption">This compares the best price available for each country, sending ${usd(amt)} right
-      now. Longer bars cost more, even with the best provider. ${esc(items[0]?.country || "")} currently
-      costs the most.</p>`;
+    <p class="caption">${caption}</p>`;
 }
 
 boot();

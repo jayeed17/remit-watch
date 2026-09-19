@@ -1,16 +1,17 @@
-name: collect
+name: collect-extended
 
 on:
   schedule:
-    # :17 past the hour - off-peak minutes get scheduled more reliably
-    - cron: "17 * * * *"
+    # :47 past the hour, every 3 hours — offset from collect.yml's :17 so the
+    # two workflows' commits don't race each other.
+    - cron: "47 */3 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: collect-core
+  group: collect-extended
   cancel-in-progress: false
 
 jobs:
@@ -23,8 +24,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Collect quotes (core)
-        run: python scripts/collect.py --tier core
+      - name: Collect quotes (extended)
+        run: python scripts/collect.py --tier extended
 
       - name: Commit snapshot
         run: |
@@ -34,6 +35,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "no change"
           else
-            git commit -m "data (core): $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -m "data (extended): $(date -u +%Y-%m-%dT%H:%MZ)"
             git push
           fi

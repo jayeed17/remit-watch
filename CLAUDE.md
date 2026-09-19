@@ -18,12 +18,25 @@ rate or by fee alone — that is exactly the distortion this project exists to c
 There is no server and no database. Do not add either.
 
 ```
-collect.yml (hourly cron, GitHub Actions)
+collect.yml (hourly cron, GitHub Actions)            --tier core
+collect-extended.yml (every-3-hours cron)              --tier extended
   └─ scripts/collect.py
        ├─ scripts/remit.py → api.wise.com/v4/comparisons   (provider quotes)
        └─ scripts/remit.py → frankfurter.app, er-api.com   (mid-market rate)
-            └─ writes docs/data/*.json → git commit → Pages redeploys
+            └─ merges into docs/data/*.json → git commit → Pages redeploys
 ```
+
+Corridors are split into two tiers (both defined in `scripts/collect.py`):
+`CORE` (the original corridors, all 3 amount brackets, collected hourly) and
+`EXTENDED` (lower-volume corridors, 2 brackets, collected every 3 hours, to
+keep the request count down). Each run only overwrites the corridors in the
+tier it was asked for — the other tier's entries in `latest.json` pass through
+untouched, each carrying its own `generated` timestamp, since core and
+extended corridors are collected on different schedules and can be different
+ages at any moment. The frontend shows that per-corridor freshness rather than
+one global timestamp. `scripts/discover.py` is a separate, manually-run
+research tool (not wired into either workflow) for checking whether a
+candidate corridor has real coverage before it's added to `CORE`/`EXTENDED`.
 
 The git history **is** the time series. Every snapshot is a commit. Don't rewrite
 history in `docs/data`, don't squash the bot's commits, don't add anything there to
@@ -32,19 +45,27 @@ history in `docs/data`, don't squash the bot's commits, don't add anything there
 | Path | Role |
 |---|---|
 | `scripts/remit.py` | Fetch + normalize + rank. Also a standalone CLI. |
-| `scripts/collect.py` | Loop corridors, write JSON, trim history to 720 points. |
-| `docs/index.html` | The entire frontend. Single file, no build step. |
-| `docs/data/latest.json` | Current snapshot, all corridors, all brackets. |
+| `scripts/collect.py` | Loop corridors for a tier, merge into JSON, trim history to 720 points. |
+| `scripts/discover.py` | Manual research tool — checks candidate corridors before adding them. |
+| `docs/index.html` | Single-corridor tool: pick a country, pick an amount, see who's cheapest. |
+| `docs/compare.html` | Full sortable comparison across every tracked corridor. |
+| `docs/style.css` | Shared stylesheet for both pages. |
+| `docs/app.js` | Shared JS: formatters, flag SVGs, data loading. No build step — plain `<script src>`. |
+| `docs/data/latest.json` | Current snapshot, all corridors, each with its own `tier` + `generated`. |
 | `docs/data/history/SRC-DST.json` | Rolling 30 days, `lost_pct` per provider per hour. |
-| `.github/workflows/collect.yml` | The cron. Needs repo write permission. |
+| `.github/workflows/collect.yml` | Hourly cron, `--tier core`. Needs repo write permission. |
+| `.github/workflows/collect-extended.yml` | Every-3-hours cron, `--tier extended`. |
 
 ## Constraints
 
 - **Python: standard library only.** No requests, no pandas. The workflow installs
   nothing, and adding a dependency means adding an install step and a lockfile.
-- **Frontend: no framework, no bundler, no npm.** Vanilla JS in `docs/index.html`.
-  Google Fonts is the only external request. Keep it that way — the page must work on
-  a slow phone.
+- **Frontend: no framework, no bundler, no npm.** Vanilla JS across `docs/index.html`,
+  `docs/compare.html`, and the shared `docs/style.css` / `docs/app.js` — plain
+  `<link>`/`<script src>`, no module loader. Google Fonts is the only external
+  request. Keep it that way — the pages must work on a slow phone. Paths between
+  the two HTML files and the shared assets must stay relative — Pages serves this
+  from `/remit-watch/`, not the domain root.
 - **No secrets.** Both APIs are keyless. If a provider ever needs a key, it goes in
   Actions secrets and never in `docs/`, because `docs/` is publicly served.
 - **The JSON shape is a contract** between `collect.py` and `index.html`. Changing a
@@ -56,8 +77,11 @@ history in `docs/data`, don't squash the bot's commits, don't add anything there
 ```bash
 python scripts/remit.py USD BDT 500      # one corridor, printed table
 python scripts/remit.py USD INR 500 --json
-python scripts/collect.py                # all corridors → docs/data/
-python -m http.server -d docs 8000       # serve the site locally
+python scripts/collect.py                # both tiers → docs/data/ (manual default)
+python scripts/collect.py --tier core    # what collect.yml runs, hourly
+python scripts/collect.py --tier extended  # what collect-extended.yml runs, every 3h
+python scripts/discover.py               # check candidate corridors before adding them
+python -m http.server -d docs 8000       # serve both pages locally
 ```
 
 No test suite yet. If you add one, `unittest` from the stdlib, fixtures in
@@ -84,7 +108,10 @@ No test suite yet. If you add one, `unittest` from the stdlib, fixtures in
 3. **Single-source risk.** Every competitor quote currently comes from Wise, a
    competitor. This is disclosed in the README and must stay disclosed until there is
    a second independent source.
-4. Fee tiers are sampled at $200 / $500 / $1000 and interpolated in between.
+4. Fee tiers are sampled at $200 / $500 / $1000 for `CORE` corridors, $200 / $500
+   only for `EXTENDED` — and interpolated in between. The site falls back to the
+   nearest available bracket for an extended-tier corridor at $1000; it's an
+   approximation, not a missing feature.
 
 ## Do not
 

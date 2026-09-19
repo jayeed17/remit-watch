@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which country costs the most to send money to</title>
+<meta name="description" content="Every corridor Remit Watch tracks, compared side by side at the same amount — which country costs the most to send money to right now.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="wrap">
+
+  <nav class="pagenav" aria-label="Pages">
+    <a href="index.html">Compare providers</a>
+    <a href="compare.html" aria-current="page">Compare countries</a>
+  </nav>
+
+  <header class="mast">
+    <h1>Which country costs the most to send money to, right now.</h1>
+    <p class="sub">Every corridor this site tracks, compared side by side at the same amount —
+      using each country's best available provider.</p>
+  </header>
+
+  <div id="app" hidden>
+    <h2 style="margin-top:1.25rem">How much are you sending?</h2>
+    <div class="amtpresets" id="amtpresets" role="group" aria-label="Choose an amount in US dollars"></div>
+    <div class="amtcustom">
+      <label for="amount">Or type a different amount</label>
+      <span class="box"><span aria-hidden="true">$</span>
+        <input id="amount" type="number" inputmode="numeric" min="10" max="5000" step="10" value="500"
+               aria-label="Amount in US dollars">
+      </span>
+    </div>
+
+    <h2>Every corridor, compared</h2>
+    <div class="sortbar" role="group" aria-label="Sort order">
+      <span>Sort by:</span>
+      <button type="button" class="btn" id="sortExpensive" aria-pressed="true">Most expensive first</button>
+      <button type="button" class="btn" id="sortCheap" aria-pressed="false">Cheapest first</button>
+      <button type="button" class="btn" id="sortAz" aria-pressed="false">Country A–Z</button>
+    </div>
+    <div id="compareChart" aria-live="polite"></div>
+
+    <p class="note" id="note"></p>
+  </div>
+
+  <div class="state" id="loading">Loading the latest prices.</div>
+  <div class="state" id="error" hidden>
+    <b>No price data yet.</b>
+    Run <code>python scripts/collect.py</code> and commit the files it writes to
+    <code>docs/data</code>, or wait for the hourly job to do it.
+  </div>
+
+  <footer class="site-footer">
+    <p>Built by <a href="https://jayeed17.github.io">Zayeed Bin Kabir</a>. Source code on
+      <a href="https://github.com/jayeed17/remit-watch">GitHub</a>.</p>
+    <p>Prices are checked regularly. This page reports a measurement — it is not financial advice.</p>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+<script>
+let SNAP = null, amount = 500, sortMode = "expensive";
+
+async function boot(){
+  try {
+    SNAP = await fetchSnapshot();
+  } catch {
+    $("loading").hidden = true; $("error").hidden = false; return;
+  }
+
+  applyHash();
+
+  $("amtpresets").innerHTML = [100,200,500,1000].map(v => `
+    <button type="button" class="btn amtbtn" data-amt="${v}" aria-pressed="${v===amount}">$${v}</button>`).join("");
+  [...$("amtpresets").querySelectorAll("button")].forEach(b => b.onclick = () => setAmount(+b.dataset.amt));
+  $("amount").oninput = (e) => setAmount(+e.target.value);
+
+  const sortIds = {expensive: "sortExpensive", cheap: "sortCheap", az: "sortAz"};
+  Object.entries(sortIds).forEach(([mode, id]) => $(id).onclick = () => setSort(mode));
+
+  $("note").textContent =
+    `Each corridor shows the cheapest available provider for the amount above. Corridors update on ` +
+    `two schedules — some more often than others — so freshness varies; each row shows exactly when ` +
+    `it was checked. Go to the other page for the full provider-by-provider breakdown for one country.`;
+
+  $("loading").hidden = true; $("app").hidden = false;
+  syncAmountUI(); setSort(sortMode);
+}
+
+// Shareable state: #AMOUNT, e.g. #1000.
+function applyHash(){
+  const m = /^#?(\d+)$/.exec(decodeURIComponent(location.hash));
+  if (!m) return;
+  amount = Math.max(10, Math.min(5000, Math.round(+m[1]) || amount));
+}
+function syncHash(){
+  history.replaceState(null, "", `#${amount}`);
+}
+
+function syncAmountUI(){
+  $("amount").value = amount;
+  [...$("amtpresets").querySelectorAll("button")].forEach(b => {
+    b.setAttribute("aria-pressed", String(+b.dataset.amt === amount));
+  });
+}
+function setAmount(v){
+  if (!Number.isFinite(v)) return;
+  amount = Math.max(10, Math.min(5000, Math.round(v)));
+  syncAmountUI(); render();
+}
+function setSort(mode){
+  sortMode = mode;
+  ["expensive","cheap","az"].forEach(m => {
+    const id = "sort" + m[0].toUpperCase() + m.slice(1);
+    $(id).setAttribute("aria-pressed", String(m === mode));
+  });
+  render();
+}
+
+function render(){
+  syncHash();
+
+  const items = SNAP.corridors.map(c => {
+    const rows = rowsFor(c, amount);
+    if (!rows.length) return null;
+    return {
+      country: c.country,
+      displayLost: Math.max(0, Math.round(rows[0].usdLost)),
+      provider: rows[0].provider,
+      generated: c.generated || SNAP.generated,
+    };
+  }).filter(Boolean);
+
+  if (sortMode === "expensive") items.sort((a,b) => b.displayLost - a.displayLost);
+  else if (sortMode === "cheap") items.sort((a,b) => a.displayLost - b.displayLost);
+  else items.sort((a,b) => a.country.localeCompare(b.country));
+
+  const max = Math.max(...items.map(it => it.displayLost), 1);
+  const rowH = 118, top = 10;
+  const H = top + items.length*rowH + 6;
+
+  // Four short lines rather than one long sentence - "$17 lost with Western
+  // Union, the best option there" visually clipped on narrow phones (no
+  // scrollbar, just unreadable past the edge). Each line here comfortably
+  // fits the shared CW viewBox even for the longest provider names.
+  const bars = items.map((it,i) => {
+    const y = top + i*rowH;
+    const w = Math.max(2, (it.displayLost/max) * CW);
+    return `
+      <text x="0" y="${y+18}" class="barName">${esc(it.country)}</text>
+      <text x="0" y="${y+38}" class="barAmt">${esc(usd(it.displayLost))} lost</text>
+      <text x="0" y="${y+56}" class="barAmt">with ${esc(it.provider)}</text>
+      <text x="0" y="${y+74}" class="barAmt">Checked ${esc(freshness(it.generated))}</text>
+      <rect x="0" y="${y+82}" width="${w.toFixed(1)}" height="22" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
+  }).join("");
+
+  const most = [...items].sort((a,b) => b.displayLost - a.displayLost)[0];
+  $("compareChart").innerHTML = `
+    <svg class="chart" viewBox="0 0 ${CW} ${H}" role="img"
+         aria-label="Comparing the cheapest available option for every country tracked, sending ${esc(usd(amount))} today">
+      ${bars}
+    </svg>
+    <p class="caption">This compares the best price available for each country, sending ${usd(amount)} right
+      now. Longer bars cost more, even with the best provider. ${esc(most?.country || "")} currently
+      costs the most.</p>`;
+}
+
+boot();
+</script>
+</body>
+</html>

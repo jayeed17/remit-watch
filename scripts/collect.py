@@ -1,11 +1,23 @@
 """Collect quotes for every corridor and write JSON the static site reads.
 
-Run hourly by .github/workflows/collect.yml. Writes:
+Two tiers, run on different schedules (see .github/workflows/collect.yml and
+collect-extended.yml):
+  core     - the original 7 corridors, all 3 amount brackets, hourly.
+  extended - newer, lower-volume corridors, 2 brackets, every 3 hours.
+
+Each run only touches the corridors in the tier it was asked for - the other
+tier's most recent entries in latest.json are preserved untouched. Every
+corridor entry carries its own "generated" and "tier" fields, since core and
+extended corridors are collected on different schedules and can be different
+ages at any given moment; the site shows that, not just one global timestamp.
+
+Writes:
   docs/data/latest.json              - current snapshot, all corridors
   docs/data/history/USD-BDT.json     - rolling 30 days of cost-to-send
 """
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import sys
@@ -15,18 +27,39 @@ from datetime import datetime, timezone
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from remit import compare, mid_market  # noqa: E402
 
-# Add corridors here. Brackets exist because fees are tiered - the site picks
-# the nearest bracket and recomputes exactly from that bracket's rate + fee.
-CORRIDORS = [
+CORE = [
     ("USD", "BDT", "Bangladesh"),
     ("USD", "INR", "India"),
     ("USD", "PKR", "Pakistan"),
     ("USD", "MXN", "Mexico"),
     ("USD", "PHP", "Philippines"),
     ("USD", "DOP", "Dominican Republic"),
+    ("USD", "NPR", "Nepal"),
 ]
-BRACKETS = [200, 500, 1000]
-MAX_POINTS = 720  # ~30 days hourly
+
+# Picked from scripts/discover.py's results. El Salvador was requested but
+# dropped: it's officially dollarized (USD), so there's no separate currency
+# to mark up, and Wise's USD->USD comparison returns exactly one quote
+# (itself) - nothing to compare, so nothing worth shipping.
+EXTENDED = [
+    ("USD", "VND", "Vietnam"),
+    ("USD", "GTQ", "Guatemala"),
+    ("USD", "COP", "Colombia"),
+    ("USD", "NGN", "Nigeria"),
+    ("USD", "HNL", "Honduras"),
+    ("USD", "EGP", "Egypt"),
+    ("USD", "CNY", "China"),
+    ("USD", "PEN", "Peru"),
+    ("USD", "JMD", "Jamaica"),
+]
+
+# Brackets exist because fees are tiered - the site picks the nearest bracket
+# and recomputes exactly from that bracket's rate + fee.
+TIERS = {
+    "core": {"corridors": CORE, "brackets": [200, 500, 1000]},
+    "extended": {"corridors": EXTENDED, "brackets": [200, 500]},
+}
+MAX_POINTS = 720  # ~30 days hourly for core; extended fills in more slowly
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / "docs" / "data"
@@ -44,20 +77,20 @@ def load_json(path: pathlib.Path, default):
         return default
 
 
-def main() -> int:
-    ts = datetime.now(timezone.utc).isoformat(timespec="minutes")
-    snapshot = {"generated": ts, "brackets": BRACKETS, "corridors": []}
-    failures = []
-
-    for src, dst, country in CORRIDORS:
+def collect_tier(tier_name: str, ts: str, existing_by_dst: dict, failures: list) -> None:
+    cfg = TIERS[tier_name]
+    for src, dst, country in cfg["corridors"]:
         try:
             mid = mid_market(src, dst)
         except Exception as e:  # noqa: BLE001
             failures.append(f"{src}-{dst} mid-market: {e}")
             continue
 
-        entry = {"src": src, "dst": dst, "country": country, "mid": mid, "quotes": {}}
-        for amount in BRACKETS:
+        entry = {
+            "src": src, "dst": dst, "country": country, "mid": mid,
+            "tier": tier_name, "generated": ts, "quotes": {},
+        }
+        for amount in cfg["brackets"]:
             try:
                 quotes = compare(src, dst, amount, mid)
             except Exception as e:  # noqa: BLE001
@@ -67,11 +100,11 @@ def main() -> int:
 
         if not entry["quotes"]:
             continue
-        snapshot["corridors"].append(entry)
+        existing_by_dst[dst] = entry
 
-        # History tracks the mid bracket only - one number per provider per hour.
-        mid_bracket = str(BRACKETS[len(BRACKETS) // 2])
-        rows = entry["quotes"].get(mid_bracket) or next(iter(entry["quotes"].values()))
+        # History tracks $500 - every tier collects it - one number per
+        # provider per collection.
+        rows = entry["quotes"].get("500") or next(iter(entry["quotes"].values()))
         path = DATA / "history" / f"{src}-{dst}.json"
         hist = load_json(path, [])
         hist.append(
@@ -85,11 +118,28 @@ def main() -> int:
         print(f"{src}->{dst}: {len(rows)} providers, cheapest {rows[0]['provider']} "
               f"at {rows[0]['lost_pct']}%")
 
-    if not snapshot["corridors"]:
+
+def main(tier: str) -> int:
+    ts = datetime.now(timezone.utc).isoformat(timespec="minutes")
+    tier_names = list(TIERS) if tier == "all" else [tier]
+
+    # Load whatever's already there and only overwrite the corridors in the
+    # tier(s) we were asked to run - the other tier's entries pass through
+    # untouched, each keeping its own "generated" timestamp.
+    existing = load_json(DATA / "latest.json", {})
+    existing_by_dst = {c["dst"]: c for c in existing.get("corridors", [])}
+    failures = []
+
+    for name in tier_names:
+        collect_tier(name, ts, existing_by_dst, failures)
+
+    corridors = list(existing_by_dst.values())
+    if not corridors:
         print("no corridors collected:", *failures, sep="\n  ", file=sys.stderr)
         return 1
 
-    snapshot["failures"] = failures
+    all_brackets = sorted({int(b) for c in corridors for b in c["quotes"]})
+    snapshot = {"generated": ts, "brackets": all_brackets, "corridors": corridors, "failures": failures}
     write_json(DATA / "latest.json", snapshot)
     for f in failures:
         print("warn:", f, file=sys.stderr)
@@ -97,4 +147,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tier", choices=["core", "extended", "all"], default="all",
+                     help="which corridors to collect (default: all, for manual runs)")
+    args = ap.parse_args()
+    raise SystemExit(main(args.tier))

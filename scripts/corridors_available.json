@@ -1,0 +1,158 @@
+[
+  {
+    "dst": "INR",
+    "country": "India",
+    "providers": 9,
+    "mid_market": 95.88
+  },
+  {
+    "dst": "MXN",
+    "country": "Mexico",
+    "providers": 8,
+    "mid_market": 17.1776
+  },
+  {
+    "dst": "THB",
+    "country": "Thailand",
+    "providers": 8,
+    "mid_market": 33.355
+  },
+  {
+    "dst": "PKR",
+    "country": "Pakistan",
+    "providers": 7,
+    "mid_market": 277.421451
+  },
+  {
+    "dst": "PHP",
+    "country": "Philippines",
+    "providers": 6,
+    "mid_market": 62.803
+  },
+  {
+    "dst": "BRL",
+    "country": "Brazil",
+    "providers": 6,
+    "mid_market": 5.1359
+  },
+  {
+    "dst": "IDR",
+    "country": "Indonesia",
+    "providers": 6,
+    "mid_market": 17823.0
+  },
+  {
+    "dst": "VND",
+    "country": "Vietnam",
+    "providers": 5,
+    "mid_market": 26002.266329
+  },
+  {
+    "dst": "LKR",
+    "country": "Sri Lanka",
+    "providers": 5,
+    "mid_market": 331.370661
+  },
+  {
+    "dst": "CNY",
+    "country": "China",
+    "providers": 5,
+    "mid_market": 6.6976
+  },
+  {
+    "dst": "PLN",
+    "country": "Poland",
+    "providers": 5,
+    "mid_market": 3.8076
+  },
+  {
+    "dst": "BDT",
+    "country": "Bangladesh",
+    "providers": 4,
+    "mid_market": 122.858054
+  },
+  {
+    "dst": "EGP",
+    "country": "Egypt",
+    "providers": 4,
+    "mid_market": 52.135355
+  },
+  {
+    "dst": "MAD",
+    "country": "Morocco",
+    "providers": 4,
+    "mid_market": 9.46561
+  },
+  {
+    "dst": "PEN",
+    "country": "Peru",
+    "providers": 4,
+    "mid_market": 3.364479
+  },
+  {
+    "dst": "NGN",
+    "country": "Nigeria",
+    "providers": 3,
+    "mid_market": 1329.829645
+  },
+  {
+    "dst": "GTQ",
+    "country": "Guatemala",
+    "providers": 3,
+    "mid_market": 7.637624
+  },
+  {
+    "dst": "NPR",
+    "country": "Nepal",
+    "providers": 3,
+    "mid_market": 153.58912
+  },
+  {
+    "dst": "DOP",
+    "country": "Dominican Republic",
+    "providers": 3,
+    "mid_market": 58.877972
+  },
+  {
+    "dst": "COP",
+    "country": "Colombia",
+    "providers": 3,
+    "mid_market": 3127.64036
+  },
+  {
+    "dst": "GHS",
+    "country": "Ghana",
+    "providers": 3,
+    "mid_market": 11.552181
+  },
+  {
+    "dst": "KES",
+    "country": "Kenya",
+    "providers": 3,
+    "mid_market": 129.525725
+  },
+  {
+    "dst": "HNL",
+    "country": "Honduras",
+    "providers": 2,
+    "mid_market": 26.852525
+  },
+  {
+    "dst": "JMD",
+    "country": "Jamaica",
+    "providers": 2,
+    "mid_market": 157.565059
+  },
+  {
+    "dst": "UAH",
+    "country": "Ukraine",
+    "providers": 2,
+    "mid_market": 44.690353
+  },
+  {
+    "dst": "ETB",
+    "country": "Ethiopia",
+    "providers": 2,
+    "mid_market": 161.611383
+  }
+]
