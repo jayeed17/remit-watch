@@ -51,7 +51,7 @@ history in `docs/data`, don't squash the bot's commits, don't add anything there
 | `docs/compare.html` | Full sortable comparison across every tracked corridor. |
 | `docs/style.css` | Shared stylesheet for both pages. |
 | `docs/app.js` | Shared JS: formatters, flag SVGs, data loading. No build step — plain `<script src>`. |
-| `docs/data/latest.json` | Current snapshot, all corridors, each with its own `tier` + `generated`. |
+| `docs/data/latest.json` | Current snapshot, all corridors, each with its own `tier`, `generated`, and `rate_uncertain`/`rate_disagreement_pct` (known gap #5). |
 | `docs/data/history/SRC-DST.json` | Rolling 30 days, `lost_pct` per provider per hour. |
 | `.github/workflows/collect.yml` | Hourly cron, `--tier core`. Needs repo write permission. |
 | `.github/workflows/collect-extended.yml` | Every-3-hours cron, `--tier extended`. |
@@ -112,6 +112,42 @@ No test suite yet. If you add one, `unittest` from the stdlib, fixtures in
    only for `EXTENDED` — and interpolated in between. The site falls back to the
    nearest available bracket for an extended-tier corridor at $1000; it's an
    approximation, not a missing feature.
+5. **Reference-rate accuracy for thin currencies is a real, measured problem, not a
+   hypothetical one.** 12 of 16 corridors (everything except INR, MXN, PHP, CNY) fall
+   back to `er-api.com` because ECB/`frankfurter.app` doesn't publish them at all, and
+   `er-api`'s free tier updates once per 24h. `mid_market()` now averages `er-api` with
+   a second free daily mirror when frankfurter fails, and `collect.py` cross-checks the
+   result against Wise's own self-declared mid-market quote (free — same API call,
+   never used as the reference itself, since Wise is a ranked competitor). Measured
+   disagreement against Wise: COP 1.79% → 0.90% after widening (looks like simple
+   staleness — two independent sources now agree, fixed). NGN stayed at ~3.0%
+   (averaging the two daily sources doesn't move it, because *both* agree with each
+   other and disagree with Wise — this looks like a genuine dispute about which real
+   NGN rate to use, not staleness, and isn't fixable with free sources). Everything
+   else measured under 0.35%. Corridors over 1% disagreement are marked
+   `"rate_uncertain": true` with `"rate_disagreement_pct"` in `latest.json`, and the
+   frontend discloses this plainly rather than showing a confidently precise number.
+   If you add a corridor via `discover.py`, check its disagreement before trusting it.
+
+   **Diagnostic for a newly-flagged corridor**: compare `er-api` and the third source
+   (`_currency_api`) to *each other*, not just each to Wise. If the two free sources
+   agree with each other but both disagree with Wise (NGN: 0.15% apart from each
+   other, ~3% apart from Wise) - widening sources won't help, because averaging two
+   agreeing sources isn't a second opinion, it's the same opinion twice. That pattern
+   is consistent with a real dual-rate market (official vs. parallel/market rate -
+   Nigeria has a documented history of this; Egypt's 2022-2023 currency float is a
+   plausible future candidate, though it currently measures under 0.1% and isn't
+   flagged - don't treat this as a current problem, just a reason to keep watching
+   it). If instead the two free sources disagree with *each other* too (COP: 1.73%
+   apart), that looks like ordinary staleness/noise, and widening genuinely helps -
+   confirmed: COP's Wise-disagreement dropped from 1.79% to 0.90% after averaging.
+
+   Don't rewrite "our data sources disagree" into "dual-rate market" copy yet - that
+   needs days of `rate_disagreement_pct` history (now recorded per-reading in
+   `docs/data/history/*.json`, not just the current snapshot) showing the gap is
+   *persistent* rather than a one-off fluctuation. If NGN's history shows a stable
+   ~3% gap over time rather than noise, the frontend wording should change to name
+   the likely cause instead of implying an unresolved data error.
 
 ## Do not
 

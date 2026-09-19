@@ -43,6 +43,7 @@
     <section id="result" aria-live="polite" aria-atomic="true">
       <p class="lead" id="lead"></p>
       <p class="freshness" id="freshness"></p>
+      <p class="uncertain" id="uncertain" hidden></p>
 
       <div class="shortfall">
         <div class="bar">
@@ -114,6 +115,7 @@ async function boot(){
       <button type="button" class="country-btn" data-i="${i}" aria-pressed="${i===selectedIndex}">
         <span class="flagbox">${flagMarkup(c.dst)}</span>
         <span>${esc(c.country)}</span>
+        ${c.rate_uncertain ? '<span class="tag bad">Rate uncertain</span>' : ''}
       </button>`;
     (c.tier === "extended" ? more : core).push(btn);
   });
@@ -206,6 +208,12 @@ function render(){
     `Send ${usd(amount)} to ${esc(c.country)} today and <b>${esc(best.provider)}</b> gets the most ` +
     `money there. The worst option costs you <b>${usdLoss(worst.usdLost-best.usdLost)}</b> more.`;
   $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
+  $("uncertain").hidden = !c.rate_uncertain;
+  if (c.rate_uncertain) {
+    $("uncertain").textContent =
+      `We're not confident in the exchange rate for ${c.country} right now — our data sources ` +
+      `disagree by about ${c.rate_disagreement_pct}%. Treat the numbers below as rough until this settles.`;
+  }
 
   $("barArrives").style.width = (100 * best.received / ideal).toFixed(2) + "%";
   $("valArrives").textContent = local(best.received, c.dst);

@@ -25,7 +25,13 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from remit import compare, mid_market  # noqa: E402
+from remit import compare, mid_market, wise_mid_market  # noqa: E402
+
+# Above this, disclose the reference rate as uncertain rather than show a
+# confidently-precise number. Calibrated against real measurements: most
+# corridors disagree with Wise's self-declared mid by well under 0.5%; COP
+# and NGN were the only ones over 1% (see CLAUDE.md known gaps).
+RATE_DISAGREEMENT_THRESHOLD = 1.0
 
 CORE = [
     ("USD", "BDT", "Bangladesh"),
@@ -86,9 +92,23 @@ def collect_tier(tier_name: str, ts: str, existing_by_dst: dict, failures: list)
             failures.append(f"{src}-{dst} mid-market: {e}")
             continue
 
+        # Free cross-check: compare our reference rate against Wise's own
+        # self-declared mid-market quote (already fetched below, but this
+        # needs its own call since compare() only returns provider quotes,
+        # not Wise's mid). Never used as the reference itself - see
+        # wise_mid_market()'s docstring for why.
+        try:
+            wise_mid = wise_mid_market(src, dst)
+        except Exception:  # noqa: BLE001
+            wise_mid = None
+        disagreement = 100 * abs(wise_mid - mid) / wise_mid if wise_mid else None
+
         entry = {
             "src": src, "dst": dst, "country": country, "mid": mid,
-            "tier": tier_name, "generated": ts, "quotes": {},
+            "tier": tier_name, "generated": ts,
+            "rate_uncertain": bool(disagreement and disagreement > RATE_DISAGREEMENT_THRESHOLD),
+            "rate_disagreement_pct": round(disagreement, 2) if disagreement is not None else None,
+            "quotes": {},
         }
         for amount in cfg["brackets"]:
             try:
@@ -111,12 +131,14 @@ def collect_tier(tier_name: str, ts: str, existing_by_dst: dict, failures: list)
             {
                 "ts": ts,
                 "mid": round(mid, 6),
+                "rate_disagreement_pct": entry["rate_disagreement_pct"],
                 "providers": {r["provider"]: r["lost_pct"] for r in rows},
             }
         )
         write_json(path, hist[-MAX_POINTS:])
+        flag = f" [RATE UNCERTAIN: {disagreement:.2f}% disagreement]" if entry["rate_uncertain"] else ""
         print(f"{src}->{dst}: {len(rows)} providers, cheapest {rows[0]['provider']} "
-              f"at {rows[0]['lost_pct']}%")
+              f"at {rows[0]['lost_pct']}%{flag}")
 
 
 def main(tier: str) -> int:

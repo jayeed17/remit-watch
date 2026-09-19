@@ -79,6 +79,7 @@ h2{
 }
 .country-btn[aria-pressed="true"] .flagbox svg,
 .country-btn[aria-pressed="true"] .flagFallback{border-color:var(--paper)}
+.country-btn[aria-pressed="true"] .tag{color:var(--paper)}
 .morebtn{margin-top:.75rem}
 
 /* ---- amount picker ---- */
@@ -106,6 +107,12 @@ h2{
 
 /* ---- freshness ---- */
 .freshness{margin:.4rem 0 0;color:var(--ink-soft);font-size:.9rem}
+
+/* ---- rate-uncertain disclosure ---- */
+.uncertain{
+  margin:.85rem 0 0;padding:.85rem 1rem;border:2px solid var(--kept-text);border-radius:.6rem;
+  color:var(--kept-text);font-weight:600;font-size:.95rem;
+}
 
 /* ---- shortfall bar: the one loud picture ---- */
 .shortfall{margin:1.25rem 0 0}

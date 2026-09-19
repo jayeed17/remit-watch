@@ -16,10 +16,27 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 
 WISE = "https://api.wise.com/v4/comparisons/"
-FX_SOURCES = [
-    ("https://api.frankfurter.app/latest", lambda d, dst: d["rates"][dst]),
-    ("https://open.er-api.com/v6/latest", lambda d, dst: d["rates"][dst]),
-]
+
+
+def _frankfurter(src: str, dst: str) -> float:
+    d = _get("https://api.frankfurter.app/latest", {"from": src, "to": dst})
+    return float(d["rates"][dst])
+
+
+def _erapi(src: str, dst: str) -> float:
+    d = _get(f"https://open.er-api.com/v6/latest/{src}", {})
+    return float(d["rates"][dst])
+
+
+def _currency_api(src: str, dst: str) -> float:
+    # A community-maintained daily mirror, keyless. Used alongside er-api,
+    # not instead of it - two free sources that update on different
+    # schedules disagreeing is itself useful signal (see mid_market()).
+    d = _get(
+        f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{src.lower()}.json",
+        {},
+    )
+    return float(d[src.lower()][dst.lower()])
 
 
 @dataclass
@@ -44,16 +61,44 @@ def _get(url: str, params: dict) -> dict | list:
 
 
 def mid_market(src: str, dst: str) -> float:
-    """ECB first; falls back for corridors ECB doesn't cover (BDT, PKR...)."""
-    errors = []
-    for url, pick in FX_SOURCES:
+    """ECB (frankfurter) first - it's the most trustworthy source we have,
+    but doesn't cover thin currencies (BDT, PKR, COP, NGN...). For those,
+    query both free daily-updated fallbacks and average them: a single
+    24h-stale source can be meaningfully wrong for a volatile currency
+    (confirmed empirically for COP - see CLAUDE.md known gaps), and two
+    independent sources that happen to agree is itself a useful signal.
+    """
+    try:
+        return _frankfurter(src, dst)
+    except Exception:  # noqa: BLE001
+        pass
+
+    vals, errors = [], []
+    for fn in (_erapi, _currency_api):
         try:
-            if "frankfurter" in url:
-                return float(pick(_get(url, {"from": src, "to": dst}), dst))
-            return float(pick(_get(f"{url}/{src}", {}), dst))
+            vals.append(fn(src, dst))
         except Exception as e:  # noqa: BLE001
-            errors.append(f"{url}: {e}")
-    raise RuntimeError("no mid-market rate: " + "; ".join(errors))
+            errors.append(f"{fn.__name__}: {e}")
+    if not vals:
+        raise RuntimeError("no mid-market rate: " + "; ".join(errors))
+    return sum(vals) / len(vals)
+
+
+def wise_mid_market(src: str, dst: str, amount: float = 500) -> float | None:
+    """Wise includes its own self-declared mid-market quote in every
+    comparisons response (isConsideredMidMarketRate=True, markup=0) - free
+    to read since we already call this endpoint. Used only as a cross-check
+    against our own reference rate, never as the reference itself: Wise is
+    one of the ranked competitors, so trusting its number would make its
+    own markup zero by construction.
+    """
+    data = _get(WISE, {"sourceCurrency": src, "targetCurrency": dst, "sendAmount": amount})
+    providers = data if isinstance(data, list) else data.get("providers", [])
+    for p in providers:
+        for q in p.get("quotes", []):
+            if q.get("isConsideredMidMarketRate") and q.get("rate"):
+                return float(q["rate"])
+    return None
 
 
 def compare(src: str, dst: str, amount: float, mid: float | None = None) -> list[Quote]:

@@ -133,6 +133,8 @@ function render(){
       displayLost: Math.max(0, Math.round(rows[0].usdLost)),
       provider: rows[0].provider,
       generated: c.generated || SNAP.generated,
+      rateUncertain: !!c.rate_uncertain,
+      disagreementPct: c.rate_disagreement_pct,
     };
   }).filter(Boolean);
 
@@ -141,23 +143,32 @@ function render(){
   else items.sort((a,b) => a.country.localeCompare(b.country));
 
   const max = Math.max(...items.map(it => it.displayLost), 1);
-  const rowH = 118, top = 10;
-  const H = top + items.length*rowH + 6;
+  const ROW_H = 118, UNCERTAIN_EXTRA = 20, top = 10;
 
   // Four short lines rather than one long sentence - "$17 lost with Western
   // Union, the best option there" visually clipped on narrow phones (no
   // scrollbar, just unreadable past the edge). Each line here comfortably
-  // fits the shared CW viewBox even for the longest provider names.
-  const bars = items.map((it,i) => {
-    const y = top + i*rowH;
+  // fits the shared CW viewBox even for the longest provider names. Flagged
+  // corridors get a fifth line - only those rows reserve the extra height,
+  // so the common case doesn't carry wasted whitespace.
+  let y = top;
+  const bars = items.map((it) => {
+    const rowTop = y;
     const w = Math.max(2, (it.displayLost/max) * CW);
+    const barY = rowTop + 82 + (it.rateUncertain ? UNCERTAIN_EXTRA : 0);
+    const warn = it.rateUncertain
+      ? `<text x="0" y="${rowTop+92}" class="barAmt" fill="${C.keptText}">Rate uncertain — sources disagree ${it.disagreementPct}%</text>`
+      : "";
+    y += ROW_H + (it.rateUncertain ? UNCERTAIN_EXTRA : 0);
     return `
-      <text x="0" y="${y+18}" class="barName">${esc(it.country)}</text>
-      <text x="0" y="${y+38}" class="barAmt">${esc(usd(it.displayLost))} lost</text>
-      <text x="0" y="${y+56}" class="barAmt">with ${esc(it.provider)}</text>
-      <text x="0" y="${y+74}" class="barAmt">Checked ${esc(freshness(it.generated))}</text>
-      <rect x="0" y="${y+82}" width="${w.toFixed(1)}" height="22" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
+      <text x="0" y="${rowTop+18}" class="barName">${esc(it.country)}</text>
+      <text x="0" y="${rowTop+38}" class="barAmt">${esc(usd(it.displayLost))} lost</text>
+      <text x="0" y="${rowTop+56}" class="barAmt">with ${esc(it.provider)}</text>
+      <text x="0" y="${rowTop+74}" class="barAmt">Checked ${esc(freshness(it.generated))}</text>
+      ${warn}
+      <rect x="0" y="${barY}" width="${w.toFixed(1)}" height="22" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
   }).join("");
+  const H = y + 6;
 
   const most = [...items].sort((a,b) => b.displayLost - a.displayLost)[0];
   $("compareChart").innerHTML = `
@@ -167,7 +178,7 @@ function render(){
     </svg>
     <p class="caption">This compares the best price available for each country, sending ${usd(amount)} right
       now. Longer bars cost more, even with the best provider. ${esc(most?.country || "")} currently
-      costs the most.</p>`;
+      costs the most.${items.some(it => it.rateUncertain) ? " Corridors marked “rate uncertain” have real disagreement between our data sources about the true exchange rate — treat those numbers as rough." : ""}</p>`;
 }
 
 boot();

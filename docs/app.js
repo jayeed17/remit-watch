@@ -6,12 +6,17 @@ const usd = (n) => n.toLocaleString("en-US", {style:"currency", currency:"USD", 
 const local = (n, c) => n.toLocaleString("en-US", {maximumFractionDigits:0}) + " " + c;
 const esc = (s) => String(s).replace(/[<>&"]/g, ch => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[ch]));
 
-// A provider whose rate beats the reference mid-market rate produces a
-// negative "lost" figure (real, not a bug - different FX sources disagree
-// slightly, especially for thinly-traded currencies). Showing "-$3 you lose"
-// reads as broken to this audience, so anywhere an individual loss figure is
-// displayed, clamp it at $0. Sort order and the raw JSON keep the true
-// (possibly negative) number - only this display helper clamps.
+// NOT a cosmetic rounding fix - this hides real reference-rate error, on
+// purpose, up to a known limit. A provider whose rate beats our reference
+// mid-market rate produces a negative "lost" figure. Above 1% disagreement
+// (collect.py's RATE_DISAGREEMENT_THRESHOLD), that's surfaced explicitly via
+// rate_uncertain + the banner/tag UI. BELOW 1%, there is no banner, and this
+// clamp silently turns any resulting negative into "$0 you lose" - e.g. COP
+// has measured at 0.90% disagreement with a provider computing to -0.12%,
+// which displays as "$0" with no indication it's a reference-rate artifact
+// rather than a genuinely markup-free transfer. That gap is real, not
+// eliminated - it's just below the threshold considered worth disclosing.
+// See CLAUDE.md known gap #5 before raising or removing this threshold.
 const usdLoss = (n) => usd(Math.max(0, n));
 
 const C = {ink:"#17211d", inkSoft:"#3c453e", kept:"#9e2b3b", keptText:"#7a1f2c", best:"#1e6e52", bestText:"#14503b"};
