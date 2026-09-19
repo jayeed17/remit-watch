@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What it costs to send money home</title>
+<meta name="description" content="The real cost of a remittance — fee plus the exchange-rate markup — compared across providers and tracked over time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#edeee8;
+    --ink:#17211d;
+    --muted:#5e675f;
+    --rule:#c7cac1;
+    --kept:#9e2b3b;
+    --best:#1e6e52;
+    --step:clamp(1rem,2.5vw,1.4rem);
+    color-scheme:light;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+    font-size:17px;line-height:1.5;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:52rem;margin:0 auto;padding:var(--step) var(--step) 4rem}
+  a{color:inherit}
+
+  /* ---- masthead ---- */
+  .mast{padding:2.5rem 0 1.25rem}
+  h1{
+    margin:0;font-size:clamp(1.9rem,5.2vw,3rem);font-weight:700;
+    letter-spacing:-.035em;line-height:1.04;max-width:16ch;
+  }
+  .sub{margin:.75rem 0 0;color:var(--muted);max-width:58ch}
+
+  /* ---- the sentence control ---- */
+  .ask{
+    margin:2rem 0 .5rem;font-size:clamp(1.05rem,2.8vw,1.35rem);
+    line-height:2.1;letter-spacing:-.01em;
+  }
+  .ask select,.ask input{
+    font:inherit;font-variant-numeric:tabular-nums;color:var(--ink);
+    background:transparent;border:0;border-bottom:2px solid var(--ink);
+    padding:0 .15em .1em;margin:0 .1em;cursor:pointer;
+  }
+  .ask input{width:5.5ch;text-align:center;-moz-appearance:textfield}
+  .ask input::-webkit-outer-spin-button,
+  .ask input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .ask select:focus-visible,.ask input:focus-visible,
+  button:focus-visible{outline:2px solid var(--kept);outline-offset:3px}
+
+  /* ---- shortfall bar: the one loud thing ---- */
+  .shortfall{margin:1.5rem 0 0}
+  .bar{
+    position:relative;display:flex;height:4.5rem;border:1.5px solid var(--ink);
+    overflow:hidden;background:var(--paper);
+  }
+  .bar .arrives{background:var(--ink)}
+  .bar .kept{background:var(--kept);flex:1 1 auto}
+  .bar span{transition:width .35s cubic-bezier(.2,.7,.3,1)}
+  @media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+  .legend{
+    display:flex;flex-wrap:wrap;gap:.35rem 2rem;margin:.7rem 0 0;
+    font-size:.92rem;color:var(--muted);
+  }
+  .legend b{display:block;color:var(--ink);font-size:1.45rem;font-weight:700;letter-spacing:-.02em}
+  .legend .loud b{color:var(--kept)}
+
+  /* ---- ranked rows ---- */
+  h2{
+    margin:3rem 0 0;font-size:1.05rem;font-weight:600;letter-spacing:-.01em;
+    padding-bottom:.5rem;border-bottom:1.5px solid var(--ink);
+  }
+  .rows{margin:0;padding:0;list-style:none}
+  .row{
+    display:grid;gap:.15rem 1rem;align-items:baseline;padding:.85rem 0;
+    border-bottom:1px solid var(--rule);
+    grid-template-columns:1fr auto auto;
+  }
+  .name{font-weight:600;letter-spacing:-.01em}
+  .detail{grid-column:1;color:var(--muted);font-size:.88rem}
+  .gets{text-align:right;font-variant-numeric:tabular-nums}
+  .pct{text-align:right;width:5.5ch;font-weight:600}
+  .row.cheapest .name::after{
+    content:"cheapest";margin-left:.6rem;font-size:.75rem;font-weight:600;
+    color:var(--best);border:1px solid var(--best);border-radius:2px;padding:.1em .4em;
+    vertical-align:.15em;
+  }
+  .row.cheapest .pct{color:var(--best)}
+  .row:last-child .pct{color:var(--kept)}
+
+  /* ---- history ---- */
+  .chart{width:100%;height:auto;margin-top:1rem;overflow:visible}
+  .chart .axis{stroke:var(--rule);stroke-width:1}
+  .chart .line{fill:none;stroke-width:1.5;stroke-linejoin:round}
+  .chart text{font-size:11px;fill:var(--muted)}
+  .keys{display:flex;flex-wrap:wrap;gap:.3rem .9rem;margin-top:.6rem;font-size:.85rem;color:var(--muted)}
+  .keys i{display:inline-block;width:.7rem;height:.7rem;margin-right:.35rem;vertical-align:-.05em}
+
+  .note{margin:2.5rem 0 0;color:var(--muted);font-size:.9rem;max-width:62ch}
+  .state{padding:2rem 0;color:var(--muted)}
+  .state b{display:block;color:var(--ink);font-weight:600}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <header class="mast">
+    <h1>Sending money home costs more than the fee.</h1>
+    <p class="sub">Every provider also marks up the exchange rate. Fee plus markup is the only
+      number worth comparing, so that is the number here — checked every hour.</p>
+  </header>
+
+  <div id="app" hidden>
+    <p class="ask">
+      Sending
+      <input id="amount" type="number" inputmode="numeric" min="50" max="5000" step="50" value="500"
+             aria-label="Amount in US dollars">
+      dollars to
+      <select id="corridor" aria-label="Destination country"></select>
+    </p>
+
+    <section class="shortfall" aria-live="polite">
+      <div class="bar">
+        <span class="arrives" id="barArrives"></span>
+        <span class="kept"></span>
+      </div>
+      <div class="legend">
+        <div><span id="lblArrives">They receive</span><b id="valArrives">—</b></div>
+        <div class="loud"><span>Kept by <span id="lblProvider">the provider</span></span><b id="valKept">—</b></div>
+        <div><span>At the real rate they'd get</span><b id="valIdeal">—</b></div>
+      </div>
+    </section>
+
+    <h2>Every provider, ranked by what you keep</h2>
+    <ul class="rows" id="rows"></ul>
+
+    <h2 id="histTitle">Cost to send, last 30 days</h2>
+    <div id="hist"></div>
+
+    <p class="note" id="note"></p>
+  </div>
+
+  <div class="state" id="loading">Loading the latest quotes.</div>
+  <div class="state" id="error" hidden>
+    <b>No quote data yet.</b>
+    Run <code>python scripts/collect.py</code> and commit the files it writes to
+    <code>docs/data</code>, or wait for the hourly job to do it.
+  </div>
+
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const usd = (n) => n.toLocaleString("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0});
+const local = (n, c) => n.toLocaleString("en-US", {maximumFractionDigits:0}) + " " + c;
+
+let SNAP = null, HIST = {}, current = null;
+
+async function boot(){
+  try {
+    const r = await fetch("data/latest.json", {cache:"no-store"});
+    if (!r.ok) throw new Error(r.status);
+    SNAP = await r.json();
+    if (!SNAP.corridors?.length) throw new Error("empty");
+  } catch {
+    $("loading").hidden = true; $("error").hidden = false; return;
+  }
+
+  $("corridor").innerHTML = SNAP.corridors
+    .map((c,i) => `<option value="${i}">${c.country}</option>`).join("");
+  $("corridor").onchange = render;
+  $("amount").oninput = render;
+
+  const when = new Date(SNAP.generated);
+  $("note").textContent =
+    `Quotes collected ${when.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}. ` +
+    `Rates and fees are sampled at $${SNAP.brackets.join(", $")}; move the amount and the site ` +
+    `recomputes from the nearest sampled bracket, so figures away from those amounts are close, not exact. ` +
+    `Bank transfer in and out. Cash pickup usually costs more.`;
+
+  $("loading").hidden = true; $("app").hidden = false;
+  render();
+}
+
+function nearestBracket(quotes, amount){
+  const keys = Object.keys(quotes).map(Number).sort((a,b)=>a-b);
+  return String(keys.reduce((best,k) =>
+    Math.abs(k-amount) < Math.abs(best-amount) ? k : best, keys[0]));
+}
+
+function render(){
+  const c = SNAP.corridors[+$("corridor").value];
+  const amount = Math.max(50, Math.min(5000, +$("amount").value || 500));
+  const rows = (c.quotes[nearestBracket(c.quotes, amount)] || [])
+    .map(q => {
+      const received = Math.max(0, (amount - q.fee) * q.rate);
+      const ideal = amount * c.mid;
+      return {...q, received, lost: ideal - received, lost_pct: 100*(ideal-received)/ideal};
+    })
+    .sort((a,b) => a.lost - b.lost);
+
+  if (!rows.length) return;
+  const ideal = amount * c.mid, best = rows[0];
+  current = {c, amount, rows};
+
+  $("barArrives").style.width = (100 * best.received / ideal).toFixed(2) + "%";
+  $("valArrives").textContent = local(best.received, c.dst);
+  $("valKept").textContent = usd(best.lost) + `  (${best.lost_pct.toFixed(1)}%)`;
+  $("valIdeal").textContent = local(ideal, c.dst);
+  $("lblProvider").textContent = best.provider;
+
+  $("rows").innerHTML = rows.map((q,i) => `
+    <li class="row${i===0 ? " cheapest" : ""}">
+      <span class="name">${esc(q.provider)}</span>
+      <span class="gets">${local(q.received, c.dst)}</span>
+      <span class="pct">${q.lost_pct.toFixed(1)}%</span>
+      <span class="detail">rate ${q.rate.toLocaleString("en-US",{maximumFractionDigits:4})}
+        · fee ${usd(q.fee)} · you lose ${usd(q.lost)}</span>
+    </li>`).join("");
+
+  drawHistory(c);
+}
+
+function esc(s){ return String(s).replace(/[<>&"]/g, ch => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[ch])); }
+
+async function drawHistory(c){
+  const key = `${c.src}-${c.dst}`;
+  $("histTitle").textContent = `Cost to send to ${c.country}, last 30 days`;
+  if (!(key in HIST)) {
+    try {
+      const r = await fetch(`data/history/${key}.json`, {cache:"no-store"});
+      HIST[key] = r.ok ? await r.json() : [];
+    } catch { HIST[key] = []; }
+  }
+  const h = HIST[key];
+  if (!current || current.c.src !== c.src || current.c.dst !== c.dst) return;
+
+  if (h.length < 3) {
+    $("hist").innerHTML = `<p class="state">Not enough history yet — this fills in as the
+      hourly job runs. ${h.length} of 3 readings so far.</p>`;
+    return;
+  }
+
+  // Track the four providers present in the most readings.
+  const seen = {};
+  h.forEach(p => Object.keys(p.providers).forEach(n => seen[n] = (seen[n]||0)+1));
+  const names = Object.keys(seen).sort((a,b) => seen[b]-seen[a]).slice(0,4);
+  const colors = ["#1e6e52","#9e2b3b","#2f5d86","#8a6a1f"];
+
+  const W = 720, H = 220, P = {t:12, r:12, b:24, l:34};
+  const vals = h.flatMap(p => names.map(n => p.providers[n]).filter(v => v != null));
+  const lo = Math.max(0, Math.min(...vals) - .3), hi = Math.max(...vals) + .3;
+  const x = i => P.l + i * (W-P.l-P.r) / Math.max(1, h.length-1);
+  const y = v => P.t + (hi-v) * (H-P.t-P.b) / Math.max(.001, hi-lo);
+
+  const lines = names.map((n,k) => {
+    const d = h.map((p,i) => p.providers[n] == null ? null : `${x(i).toFixed(1)},${y(p.providers[n]).toFixed(1)}`)
+      .filter(Boolean).join(" L");
+    return d ? `<path class="line" stroke="${colors[k]}" d="M${d}"/>` : "";
+  }).join("");
+
+  const ticks = [lo, (lo+hi)/2, hi].map(v =>
+    `<line class="axis" x1="${P.l}" y1="${y(v)}" x2="${W-P.r}" y2="${y(v)}"/>
+     <text x="0" y="${y(v)+4}">${v.toFixed(1)}%</text>`).join("");
+
+  const fmt = t => new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  $("hist").innerHTML = `
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="Percentage lost to fees and exchange-rate markup over time">
+      ${ticks}${lines}
+      <text x="${P.l}" y="${H-6}">${fmt(h[0].ts)}</text>
+      <text x="${W-P.r}" y="${H-6}" text-anchor="end">${fmt(h[h.length-1].ts)}</text>
+    </svg>
+    <div class="keys">${names.map((n,k) =>
+      `<span><i style="background:${colors[k]}"></i>${esc(n)}</span>`).join("")}</div>`;
+}
+
+boot();
+</script>
+</body>
+</html>
