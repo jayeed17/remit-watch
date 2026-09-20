@@ -15,13 +15,13 @@
 html{-webkit-text-size-adjust:100%;font-size:18px}
 body{
   margin:0;background:var(--paper);color:var(--ink);
-  font-family:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+  font-family:"Public Sans",ui-sans-serif,system-ui,sans-serif;
   font-size:1rem;line-height:1.55;
   font-variant-numeric:tabular-nums;
 }
 .wrap{max-width:46rem;margin:0 auto;padding:var(--step) var(--step) 4rem}
 a{color:var(--ink);text-underline-offset:.15em}
-h1,h2{font-family:inherit}
+h1,h2{font-family:"Literata",Georgia,"Times New Roman",serif}
 
 :is(a,button,input,[tabindex]):focus-visible{
   outline:3px solid var(--ink);outline-offset:3px;border-radius:.3rem;
