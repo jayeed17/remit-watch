@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What it costs to send money home</title>
-<meta name="description" content="The real cost of a remittance — fee plus the exchange-rate markup — compared across providers and tracked over time.">
+<meta name="description" content="The real cost of a remittance is the fee plus the exchange-rate markup. Compare providers and track it over time.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Literata:wght@400;700&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
   <header class="mast">
     <h1>Sending money home costs more than the fee.</h1>
     <p class="sub">Every provider also changes your exchange rate in its own favour. Fee plus that
-      hidden cost is the real price — and that's what this page checks.</p>
+      hidden cost is the real price. That's what this page checks.</p>
   </header>
 
   <div id="app" hidden>
@@ -77,10 +77,10 @@
 
     <details class="taxinfo">
       <summary>How to avoid the new 1% US transfer tax</summary>
-      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1% — but only if you
-        pay with cash, a money order, or a cashier's check at a counter. Paying from a bank account,
-        a US debit or credit card, or most digital wallets is exempt. Every number on this page
-        assumes bank-account funding, so none of them include this tax — if you're paying cash,
+      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1%. This only applies
+        if you pay with cash, a money order, or a cashier's check at a counter. Paying from a bank
+        account, a US debit or credit card, or most digital wallets is exempt. Every number on this
+        page assumes bank-account funding, so none of them include this tax. If you're paying cash,
         add about 1% of the amount you send.
         <a href="https://www.irs.gov/newsroom/treasury-irs-issue-proposed-regulations-on-the-new-remittance-transfer-tax-established-under-the-one-big-beautiful-bill">Read the IRS notice</a>.</p>
     </details>
@@ -100,9 +100,9 @@
   </div>
 
   <footer class="site-footer">
-    <p>Built by <a href="https://jayeed17.github.io">Zayeed Bin Kabir</a>. Source code on
+    <p>Built by <a href="https://www.linkedin.com/in/zayeed-bin-kabir/">Zayeed Bin Kabir</a>. Source code on
       <a href="https://github.com/jayeed17/remit-watch">GitHub</a>.</p>
-    <p>Prices are checked regularly. This page reports a measurement — it is not financial advice.</p>
+    <p>Prices are checked regularly. This page reports a measurement. It is not financial advice.</p>
   </footer>
 
 </main>
@@ -158,18 +158,18 @@ async function boot(){
   $("shareBtn").onclick = async () => {
     try {
       await navigator.clipboard.writeText(location.href);
-      $("shareStatus").textContent = "Link copied — paste it anywhere to share this comparison.";
+      $("shareStatus").textContent = "Link copied. Paste it anywhere to share this comparison.";
     } catch {
-      $("shareStatus").textContent = `Couldn't copy automatically — the link in your address bar is ${location.href}`;
+      $("shareStatus").textContent = `Couldn't copy automatically. The link in your address bar is ${location.href}`;
     }
     setTimeout(() => { $("shareStatus").textContent = ""; }, 4000);
   };
 
   $("note").textContent =
-    `Corridors update on two schedules — some more often than others — so freshness varies; ` +
-    `each result above shows exactly when it was checked. We check exact amounts of ` +
+    `Corridors update on two schedules. Some update more often than others, so freshness varies. ` +
+    `Each result above shows exactly when it was checked. We check exact amounts of ` +
     `$${SNAP.brackets.join(", $")} and use the one closest to what you asked for, so other amounts ` +
-    `are close but not exact. This compares sending into a bank account — picking up cash in person ` +
+    `are close but not exact. This compares sending into a bank account. Picking up cash in person ` +
     `usually costs more.`;
 
   $("loading").hidden = true; $("app").hidden = false;
@@ -238,7 +238,7 @@ function render(){
   $("uncertain").hidden = !c.rate_uncertain;
   if (c.rate_uncertain) {
     $("uncertain").textContent =
-      `We're not confident in the exchange rate for ${c.country} right now — our data sources ` +
+      `We're not confident in the exchange rate for ${c.country} right now. Our data sources ` +
       `disagree by about ${c.rate_disagreement_pct}%. Treat the numbers below as rough until this settles.`;
   }
 
@@ -246,8 +246,8 @@ function render(){
     // Every provider's fee alone meets or exceeds this amount - there is no
     // real quote to show, so don't synthesize one.
     $("lead").innerHTML =
-      `${usdPrecise(amount)} is too small for any provider we track to send to ${esc(c.country)} right now — ` +
-      `their fees alone would take the whole amount. Try a larger amount.`;
+      `${usdPrecise(amount)} is too small for any provider we track to send to ${esc(c.country)} right now. ` +
+      `Their fees alone would take the whole amount. Try a larger amount.`;
     $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
     $("barArrives").style.width = "0%";
     $("valArrives").textContent = "—"; $("valKept").textContent = "—"; $("valIdeal").textContent = local(ideal, c.dst);
@@ -256,7 +256,7 @@ function render(){
     $("rows").innerHTML = rows.map(q => `
       <li class="row">
         <span class="name">${esc(q.provider)}</span>
-        <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)} — below that, its fee eats up too much of what you're sending.</p>
+        <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)}. Below that, its fee eats up too much of what you're sending.</p>
       </li>`).join("");
     $("providerBar").innerHTML = "";
     drawHistorySection(c);
@@ -283,8 +283,8 @@ function render(){
   if (inc) {
     $("incentive").innerHTML =
       `They receive ${esc(local(best.received, c.dst))}. ${esc(inc.country)}'s government adds ` +
-      `<b>${inc.rate}%</b> (about ${esc(local(inc.localAmt, c.dst))}) on top — paid separately by the ` +
-      `government, often days later, not part of this transfer.` +
+      `<b>${inc.rate}%</b> (about ${esc(local(inc.localAmt, c.dst))}) on top. It's paid separately by the ` +
+      `government, often days later. It is not part of this transfer.` +
       `<span class="elig">Only applies if: ${esc(inc.eligibility)} ` +
       `<a href="${esc(inc.source_url)}">Source</a>, checked ${esc(inc.date_verified)}.</span>`;
   }
@@ -294,7 +294,7 @@ function render(){
       return `
         <li class="row">
           <span class="name">${esc(q.provider)} <span class="tag bad">Minimum not met</span></span>
-          <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)} — below that, its fee eats up too much of what you're sending.</p>
+          <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)}. Below that, its fee eats up too much of what you're sending.</p>
         </li>`;
     }
     const i = viable.indexOf(q);
@@ -352,7 +352,7 @@ function drawHistory(c, h){
   $("histTitle").textContent = `Cost to send to ${c.country}, last 30 days`;
 
   if (h.length < 3) {
-    $("hist").innerHTML = `<p class="state">Not enough history yet — this fills in as checks
+    $("hist").innerHTML = `<p class="state">Not enough history yet. This fills in as checks
       run. ${h.length} of 3 readings so far.</p>`;
     return;
   }
@@ -415,8 +415,8 @@ function drawWinnerHistory(c, h){
 
   if (days.length < MIN_WINNER_DAYS) {
     $("winnerHistory").innerHTML = `<p class="state">This needs a few days of history to show
-      whether the cheapest option changes — right now every check is bunched into the same
-      day or two. We have ${days.length} day${days.length===1?"":"s"} so far; check back once
+      whether the cheapest option changes. Right now every check is bunched into the same
+      day or two. We have ${days.length} day${days.length===1?"":"s"} so far. Check back once
       there are at least ${MIN_WINNER_DAYS}.</p>`;
     return;
   }
@@ -441,7 +441,7 @@ function drawWinnerHistory(c, h){
 
   const caption = changes === 0
     ? `Every day for the last ${days.length} days, ${esc(days[0].provider)} has been the cheapest way
-       to send to ${esc(c.country)}. You don't need to re-check daily — it's been stable.`
+       to send to ${esc(c.country)}. You don't need to re-check daily. It's been stable.`
     : `The cheapest provider changed on ${changes} of the last ${days.length-1} days. Red bars mark a
        change from the day before, green means it stayed the same. Worth checking before you send.`;
 

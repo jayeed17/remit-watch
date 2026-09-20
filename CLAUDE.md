@@ -96,6 +96,9 @@ No test suite yet. If you add one, `unittest` from the stdlib, fixtures in
 - Money is formatted in the destination currency on the page, USD for what was lost.
 - Copy is plain and sentence case. No ALL-CAPS labels, no hype. Errors say what broke
   and what to do about it.
+- User-facing copy uses short plain sentences. No em dashes, and no dashes standing in
+  for a pause. Split into two sentences instead. (This applies to what a user reads
+  only — code comments and commit messages are unaffected.)
 
 ## Known gaps — fix these before adding features
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Which country costs the most to send money to</title>
-<meta name="description" content="Every corridor Remit Watch tracks, compared side by side at the same amount — which country costs the most to send money to right now.">
+<meta name="description" content="Every corridor Remit Watch tracks, compared side by side at the same amount. See which country costs the most to send money to right now.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Literata:wght@400;700&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -20,8 +20,8 @@
 
   <header class="mast">
     <h1>Which country costs the most to send money to, right now.</h1>
-    <p class="sub">Every corridor this site tracks, compared side by side at the same amount —
-      using each country's best available provider.</p>
+    <p class="sub">Every corridor this site tracks, compared side by side at the same amount.
+      Each one shows that country's best available provider.</p>
   </header>
 
   <div id="app" hidden>
@@ -46,10 +46,10 @@
 
     <details class="taxinfo">
       <summary>How to avoid the new 1% US transfer tax</summary>
-      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1% — but only if you
-        pay with cash, a money order, or a cashier's check at a counter. Paying from a bank account,
-        a US debit or credit card, or most digital wallets is exempt. Every number on this page
-        assumes bank-account funding, so none of them include this tax — if you're paying cash,
+      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1%. This only applies
+        if you pay with cash, a money order, or a cashier's check at a counter. Paying from a bank
+        account, a US debit or credit card, or most digital wallets is exempt. Every number on this
+        page assumes bank-account funding, so none of them include this tax. If you're paying cash,
         add about 1% of the amount you send.
         <a href="https://www.irs.gov/newsroom/treasury-irs-issue-proposed-regulations-on-the-new-remittance-transfer-tax-established-under-the-one-big-beautiful-bill">Read the IRS notice</a>.</p>
     </details>
@@ -65,9 +65,9 @@
   </div>
 
   <footer class="site-footer">
-    <p>Built by <a href="https://jayeed17.github.io">Zayeed Bin Kabir</a>. Source code on
+    <p>Built by <a href="https://www.linkedin.com/in/zayeed-bin-kabir/">Zayeed Bin Kabir</a>. Source code on
       <a href="https://github.com/jayeed17/remit-watch">GitHub</a>.</p>
-    <p>Prices are checked regularly. This page reports a measurement — it is not financial advice.</p>
+    <p>Prices are checked regularly. This page reports a measurement. It is not financial advice.</p>
   </footer>
 
 </main>
@@ -97,8 +97,8 @@ async function boot(){
 
   $("note").textContent =
     `Each corridor shows the cheapest available provider for the amount above. Corridors update on ` +
-    `two schedules — some more often than others — so freshness varies; each row shows exactly when ` +
-    `it was checked. Go to the other page for the full provider-by-provider breakdown for one country.`;
+    `two schedules. Some update more often than others, so freshness varies. Each row shows exactly ` +
+    `when it was checked. Go to the other page for the full provider-by-provider breakdown for one country.`;
 
   $("loading").hidden = true; $("app").hidden = false;
   syncAmountUI(); setSort(sortMode);
@@ -175,39 +175,38 @@ function render(){
   else items.sort((a,b) => a.country.localeCompare(b.country));
 
   const max = Math.max(...items.map(it => it.displayLost), 1);
-  const ROW_H = 118, EXTRA = 20, top = 10;
+  const EXTRA = 18, top = 10, rowGap = 12;
 
-  // Four short lines rather than one long sentence - "$17 lost with Western
-  // Union, the best option there" visually clipped on narrow phones (no
-  // scrollbar, just unreadable past the edge). Each line here comfortably
-  // fits the shared CW viewBox even for the longest provider names.
-  // Flagged/incentive corridors get extra lines - only those rows reserve
-  // the extra height, so the common case doesn't carry wasted whitespace.
+  // Country name and the lost figure share one line so the row reads at a
+  // glance; provider and freshness are one smaller, secondary line below.
+  // This page is for scanning every corridor at once, so row height has to
+  // stay small - flagged/incentive corridors get one extra secondary line
+  // each, only when they need it, so the common row stays as short as possible.
   let y = top;
   const bars = items.map((it) => {
     const rowTop = y;
     const w = Math.max(2, (it.displayLost/max) * CW);
-    let extraY = 92, extras = "";
+    const subY = 36;
+    let lastY = subY, extras = "";
     if (it.rateUncertain) {
-      extras += `<text x="0" y="${rowTop+extraY}" class="barAmt" fill="${C.keptText}">Rate uncertain — sources disagree ${it.disagreementPct}%</text>`;
-      extraY += EXTRA;
+      lastY += EXTRA;
+      extras += `<text x="0" y="${rowTop+lastY}" class="rowSub" fill="${C.keptText}">Rate uncertain. Sources disagree ${it.disagreementPct}%</text>`;
     }
     if (it.afterIncentive != null) {
-      extras += `<text x="0" y="${rowTop+extraY}" class="barAmt" fill="${C.bestText}">Raw ${esc(usd(it.displayLost))} · after ${it.incentiveRate}% incentive: ${esc(usd(it.afterIncentive))}</text>`;
-      extraY += EXTRA;
+      lastY += EXTRA;
+      extras += `<text x="0" y="${rowTop+lastY}" class="rowSub" fill="${C.bestText}">Raw ${esc(usd(it.displayLost))} · after ${it.incentiveRate}% incentive: ${esc(usd(it.afterIncentive))}</text>`;
     }
-    const extraLines = (extraY - 92) / EXTRA;
-    const barY = rowTop + 82 + extraLines * EXTRA;
-    y += ROW_H + extraLines * EXTRA;
+    const barY = rowTop + lastY + 8;
+    const rowH = (lastY + 8 + 10) + rowGap; // bar (height 10) + gap to next row
+    y += rowH;
     return `
-      <text x="0" y="${rowTop+18}" class="barName">${esc(it.country)}</text>
-      <text x="0" y="${rowTop+38}" class="barAmt">${esc(usd(it.displayLost))} lost</text>
-      <text x="0" y="${rowTop+56}" class="barAmt">with ${esc(it.provider)}</text>
-      <text x="0" y="${rowTop+74}" class="barAmt">Checked ${esc(freshness(it.generated))}</text>
+      <text x="0" y="${rowTop+18}" class="rowMain">${esc(it.country)}</text>
+      <text x="${CW}" y="${rowTop+18}" text-anchor="end" class="rowMain">${esc(usd(it.displayLost))} lost</text>
+      <text x="0" y="${rowTop+subY}" class="rowSub">with ${esc(it.provider)} · Checked ${esc(freshness(it.generated))}</text>
       ${extras}
-      <rect x="0" y="${barY}" width="${w.toFixed(1)}" height="22" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
+      <rect x="0" y="${barY}" width="${w.toFixed(1)}" height="10" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
   }).join("");
-  const H = y + 6;
+  const H = y + 6 - rowGap;
 
   const most = [...items].sort((a,b) => b.displayLost - a.displayLost)[0];
   $("compareChart").innerHTML = `
@@ -216,10 +215,10 @@ function render(){
       ${bars}
     </svg>
     <p class="caption">This compares the best price available for each country, sending ${usdPrecise(amount)} right
-      now. Bars are ranked by the raw cost, before any incentive — longer bars cost more, even with the
+      now. Bars are ranked by the raw cost, before any incentive. Longer bars cost more, even with the
       best provider. ${esc(most?.country || "")} currently costs the most.
-      ${items.some(it => it.rateUncertain) ? " Corridors marked “rate uncertain” have real disagreement between our data sources about the true exchange rate — treat those numbers as rough." : ""}
-      ${items.some(it => it.afterIncentive != null) ? " Corridors showing an “after incentive” figure only get it if the transfer qualifies (see that country's page for the eligibility rules) — a corridor can look more expensive here and still end up cheaper after an eligible incentive." : ""}</p>`;
+      ${items.some(it => it.rateUncertain) ? " Corridors marked “rate uncertain” have real disagreement between our data sources about the true exchange rate. Treat those numbers as rough." : ""}
+      ${items.some(it => it.afterIncentive != null) ? " Corridors showing an “after incentive” figure only get it if the transfer qualifies. Check that country's page for the eligibility rules. A corridor can look more expensive here and still end up cheaper after an eligible incentive." : ""}</p>`;
 }
 
 boot();
