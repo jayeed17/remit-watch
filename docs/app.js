@@ -3,6 +3,14 @@
 
 const $ = (id) => document.getElementById(id);
 const usd = (n) => n.toLocaleString("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0});
+// For the amount the user actually typed/picked - never round it. usd()
+// rounding $1.50 to "$2" in "Send $2 to..." would silently show a different
+// number than the one they chose. Only the amount itself uses this; derived
+// figures (loss, kept, fees) stay whole-dollar via usd() as before.
+const usdPrecise = (n) => {
+  const cents = Math.round(n * 100) % 100 !== 0;
+  return n.toLocaleString("en-US", {style:"currency", currency:"USD", minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2});
+};
 const local = (n, c) => n.toLocaleString("en-US", {maximumFractionDigits:0}) + " " + c;
 const esc = (s) => String(s).replace(/[<>&"]/g, ch => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[ch]));
 
@@ -71,6 +79,25 @@ async function fetchSnapshot(){
   return snap;
 }
 
+// Hand-maintained receiving-government incentives (see scripts/incentives.json).
+// Never folded into "what arrives" - always shown as its own line, since it's
+// paid by a different party, often days later, and only to eligible transfers.
+async function fetchIncentives(){
+  try {
+    const r = await fetch("data/incentives.json", {cache:"no-store"});
+    return r.ok ? await r.json() : {};
+  } catch { return {}; }
+}
+
+// received is in destination currency, mid is dst-per-USD. Returns null if
+// this corridor has no confirmed incentive.
+function incentiveFor(incentives, dst, received, mid){
+  const inc = incentives[dst];
+  if (!inc) return null;
+  const localAmt = inc.kind === "percentage" ? received * (inc.rate / 100) : inc.rate;
+  return {...inc, localAmt, usdAmt: localAmt / mid};
+}
+
 const HIST = {};
 async function fetchHistory(key){
   if (!(key in HIST)) {
@@ -93,13 +120,37 @@ function nearestBracket(quotes, amt){
 // showing a dollar figure to the user. usdLost can be negative (a provider
 // beat the reference rate) - callers displaying it must use usdLoss() to
 // clamp for display; this raw value is what sorting and differences use.
+//
+// At very small amounts, a provider's flat fee can consume most or all of
+// the transfer (e.g. a $1 send against a $0.99 fee delivers about half a
+// unit of foreign currency - technically a positive number, not the "free
+// transfer" a literal $0 clamp would imply, but just as much nonsense to
+// rank as a normal option). Such quotes are marked impractical instead of
+// ranked normally; callers must check this before rendering a quote as a
+// normal option (see index.html/compare.html for the "not available below
+// about $X" treatment).
+//
+// IMPRACTICAL_FEE_SHARE is a judgment call, not an objective line - there
+// is no fee-to-amount ratio that is *the* correct cutoff, only ones that
+// are more or less defensible. 0.5 means: if the fee eats half or more of
+// what you're sending, this isn't a real comparison point regardless of
+// the exact cents delivered. Chosen because it's a round, explainable
+// share ("more than half your money goes to the fee alone") rather than
+// because it was derived from data. A stricter or looser share could be
+// argued for; this one at least produces sane output instead of ranking
+// a $0.58-delivered quote as a normal "Priciest" option (verified against
+// DOP: Western Union's $0.99 fee against $1 sent no longer appears as a
+// ranked row - see CLAUDE.md/commit history for the before/after).
+const IMPRACTICAL_FEE_SHARE = 0.5;
+
 function rowsFor(c, amt){
   const ideal = amt * c.mid;
   return (c.quotes[nearestBracket(c.quotes, amt)] || [])
     .map(q => {
+      const impractical = q.fee >= amt * IMPRACTICAL_FEE_SHARE;
       const received = Math.max(0, (amt - q.fee) * q.rate);
       const lost = ideal - received;
-      return {...q, received, usdLost: amt * (lost / ideal)};
+      return {...q, received, usdLost: amt * (lost / ideal), impractical};
     })
-    .sort((a,b) => a.usdLost - b.usdLost);
+    .sort((a,b) => (a.impractical - b.impractical) || (a.usdLost - b.usdLost));
 }

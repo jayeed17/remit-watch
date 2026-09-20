@@ -102,6 +102,12 @@ No test suite yet. If you add one, `unittest` from the stdlib, fixtures in
 1. **Cash pickup is not covered.** Wise's endpoint estimates bank-transfer in and out
    only. Cash pickup is how much of this money actually moves on USD→BDT, PKR, MXN,
    PHP. Scraping Remitly / Ria / Western Union directly is the highest-value work here.
+   As of Jan 1 2026 this gap is sharper than "more expensive": funding a transfer with
+   cash, a money order, or a cashier's check is now subject to a 1% federal excise tax
+   (IRC 4475, from the One Big Beautiful Bill Act) that bank/card-funded transfers
+   don't pay. Every quote on this site assumes bank funding, so the tax is correctly
+   absent from all displayed numbers - but if cash pickup is ever added, its true cost
+   must include this tax, not just the worse rate/fee.
 2. **Promo rates are not flagged.** First-transfer teaser rates are the growth engine
    for these apps and they distort the ranking. Detecting and labelling them matters
    more than any UI work.

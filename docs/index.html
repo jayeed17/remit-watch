@@ -35,7 +35,7 @@
     <div class="amtcustom">
       <label for="amount">Or type a different amount</label>
       <span class="box"><span aria-hidden="true">$</span>
-        <input id="amount" type="number" inputmode="numeric" min="10" max="5000" step="10" value="500"
+        <input id="amount" type="number" inputmode="decimal" min="1" max="5000" step="0.01" value="500"
                aria-label="Amount in US dollars">
       </span>
     </div>
@@ -56,6 +56,8 @@
           <div><span>What you'd get at the real exchange rate</span><b id="valIdeal">—</b></div>
         </div>
       </div>
+
+      <p class="incentive" id="incentive" hidden></p>
     </section>
 
     <div class="share">
@@ -72,6 +74,16 @@
 
     <h2 id="winnerTitle">Does the cheapest option change</h2>
     <div id="winnerHistory"></div>
+
+    <details class="taxinfo">
+      <summary>How to avoid the new 1% US transfer tax</summary>
+      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1% — but only if you
+        pay with cash, a money order, or a cashier's check at a counter. Paying from a bank account,
+        a US debit or credit card, or most digital wallets is exempt. Every number on this page
+        assumes bank-account funding, so none of them include this tax — if you're paying cash,
+        add about 1% of the amount you send.
+        <a href="https://www.irs.gov/newsroom/treasury-irs-issue-proposed-regulations-on-the-new-remittance-transfer-tax-established-under-the-one-big-beautiful-bill">Read the IRS notice</a>.</p>
+    </details>
 
     <p class="note" id="note"></p>
 
@@ -97,7 +109,7 @@
 
 <script src="app.js"></script>
 <script>
-let SNAP = null, amount = 500, selectedIndex = 0;
+let SNAP = null, INCENTIVES = {}, amount = 500, selectedIndex = 0;
 const PRESETS = [100, 200, 500, 1000];
 
 async function boot(){
@@ -106,6 +118,7 @@ async function boot(){
   } catch {
     $("loading").hidden = true; $("error").hidden = false; return;
   }
+  INCENTIVES = await fetchIncentives();
 
   applyHash();
 
@@ -139,7 +152,8 @@ async function boot(){
   $("amtpresets").innerHTML = PRESETS.map(v => `
     <button type="button" class="btn amtbtn" data-amt="${v}" aria-pressed="${v===amount}">$${v}</button>`).join("");
   [...$("amtpresets").querySelectorAll("button")].forEach(b => b.onclick = () => setAmount(+b.dataset.amt));
-  $("amount").oninput = (e) => setAmount(+e.target.value);
+  $("amount").oninput = (e) => liveAmount(+e.target.value);
+  $("amount").onchange = (e) => setAmount(+e.target.value);
 
   $("shareBtn").onclick = async () => {
     try {
@@ -166,12 +180,12 @@ async function boot(){
 // once on load (before defaults are locked in) and kept current on every
 // render, so the address bar always matches what's on screen.
 function applyHash(){
-  const m = /^#?([A-Za-z]{3})-(\d+)$/.exec(decodeURIComponent(location.hash));
+  const m = /^#?([A-Za-z]{3})-(\d+(?:\.\d+)?)$/.exec(decodeURIComponent(location.hash));
   if (!m) return;
   const i = SNAP.corridors.findIndex(c => c.dst === m[1].toUpperCase());
   if (i === -1) return;
   selectedIndex = i;
-  amount = Math.max(10, Math.min(5000, Math.round(+m[2]) || amount));
+  amount = Math.max(1, Math.min(5000, Math.round((+m[2] || amount) * 100) / 100));
 }
 function syncHash(){
   const c = SNAP.corridors[selectedIndex];
@@ -183,16 +197,33 @@ function syncCountryUI(){
     b.setAttribute("aria-pressed", String(+b.dataset.i === selectedIndex));
   });
 }
-function syncAmountUI(){
-  $("amount").value = amount;
+function syncAmountPresets(){
   [...$("amtpresets").querySelectorAll("button")].forEach(b => {
     b.setAttribute("aria-pressed", String(+b.dataset.amt === amount));
   });
 }
+function syncAmountUI(){
+  $("amount").value = amount;
+  syncAmountPresets();
+}
+// Only clamps + rewrites the input's own displayed value - safe to call from
+// preset buttons or on blur, but NOT on every keystroke: overwriting the
+// field while the user is mid-type corrupts what they're typing (typing "3"
+// of "347" clamps below the $1 min, rewrites the field to "1", and the next
+// digits append to THAT instead of continuing "347").
 function setAmount(v){
   if (!Number.isFinite(v)) return;
-  amount = Math.max(10, Math.min(5000, Math.round(v)));
+  amount = Math.max(1, Math.min(5000, Math.round(v * 100) / 100));
   syncAmountUI(); render();
+}
+// Live typing: update state and re-render with the raw value so results
+// track what's on screen, but never touch the input's own text - clamping
+// is deferred to blur/change (setAmount, via onchange below).
+function liveAmount(v){
+  if (!Number.isFinite(v) || v <= 0) return;
+  amount = v;
+  syncAmountPresets();
+  render();
 }
 
 function render(){
@@ -200,14 +231,10 @@ function render(){
   const rows = rowsFor(c, amount);
   if (!rows.length) return;
   const ideal = amount * c.mid;
-  const best = rows[0], worst = rows[rows.length-1];
+  const viable = rows.filter(q => !q.impractical);
 
   syncHash();
 
-  $("lead").innerHTML =
-    `Send ${usd(amount)} to ${esc(c.country)} today and <b>${esc(best.provider)}</b> gets the most ` +
-    `money there. The worst option costs you <b>${usdLoss(worst.usdLost-best.usdLost)}</b> more.`;
-  $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
   $("uncertain").hidden = !c.rate_uncertain;
   if (c.rate_uncertain) {
     $("uncertain").textContent =
@@ -215,15 +242,64 @@ function render(){
       `disagree by about ${c.rate_disagreement_pct}%. Treat the numbers below as rough until this settles.`;
   }
 
+  if (!viable.length) {
+    // Every provider's fee alone meets or exceeds this amount - there is no
+    // real quote to show, so don't synthesize one.
+    $("lead").innerHTML =
+      `${usdPrecise(amount)} is too small for any provider we track to send to ${esc(c.country)} right now — ` +
+      `their fees alone would take the whole amount. Try a larger amount.`;
+    $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
+    $("barArrives").style.width = "0%";
+    $("valArrives").textContent = "—"; $("valKept").textContent = "—"; $("valIdeal").textContent = local(ideal, c.dst);
+    $("lblProvider").textContent = "the provider";
+    $("incentive").hidden = true;
+    $("rows").innerHTML = rows.map(q => `
+      <li class="row">
+        <span class="name">${esc(q.provider)}</span>
+        <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)} — below that, its fee eats up too much of what you're sending.</p>
+      </li>`).join("");
+    $("providerBar").innerHTML = "";
+    drawHistorySection(c);
+    return;
+  }
+
+  const best = viable[0], worst = viable[viable.length-1];
+
+  $("lead").innerHTML = viable.length > 1
+    ? `Send ${usdPrecise(amount)} to ${esc(c.country)} today and <b>${esc(best.provider)}</b> gets the most ` +
+      `money there. The worst option costs you <b>${usdLoss(worst.usdLost-best.usdLost)}</b> more.`
+    : `Send ${usdPrecise(amount)} to ${esc(c.country)} today and <b>${esc(best.provider)}</b> is the only ` +
+      `option we track at this amount.`;
+  $("freshness").textContent = `Prices for ${c.country} checked ${freshness(c.generated || SNAP.generated)}.`;
+
   $("barArrives").style.width = (100 * best.received / ideal).toFixed(2) + "%";
   $("valArrives").textContent = local(best.received, c.dst);
   $("valKept").textContent = usdLoss(best.usdLost);
   $("valIdeal").textContent = local(ideal, c.dst);
   $("lblProvider").textContent = best.provider;
 
-  $("rows").innerHTML = rows.map((q,i) => {
+  const inc = incentiveFor(INCENTIVES, c.dst, best.received, c.mid);
+  $("incentive").hidden = !inc;
+  if (inc) {
+    $("incentive").innerHTML =
+      `They receive ${esc(local(best.received, c.dst))}. ${esc(inc.country)}'s government adds ` +
+      `<b>${inc.rate}%</b> (about ${esc(local(inc.localAmt, c.dst))}) on top — paid separately by the ` +
+      `government, often days later, not part of this transfer.` +
+      `<span class="elig">Only applies if: ${esc(inc.eligibility)} ` +
+      `<a href="${esc(inc.source_url)}">Source</a>, checked ${esc(inc.date_verified)}.</span>`;
+  }
+
+  $("rows").innerHTML = rows.map((q) => {
+    if (q.impractical) {
+      return `
+        <li class="row">
+          <span class="name">${esc(q.provider)} <span class="tag bad">Minimum not met</span></span>
+          <p class="detail">Not available below about ${usd(q.fee / IMPRACTICAL_FEE_SHARE)} — below that, its fee eats up too much of what you're sending.</p>
+        </li>`;
+    }
+    const i = viable.indexOf(q);
     const tag = i===0 ? '<span class="tag good">Best</span>'
-      : (i===rows.length-1 && rows.length>1 ? '<span class="tag bad">Priciest</span>' : '');
+      : (i===viable.length-1 && viable.length>1 ? '<span class="tag bad">Priciest</span>' : '');
     const bank = (q.kind && q.kind !== "moneyTransferProvider") ? ' <span class="bank">(a bank)</span>' : '';
     return `
       <li class="row">
@@ -236,7 +312,7 @@ function render(){
       </li>`;
   }).join("");
 
-  drawProviderBar(c, rows, amount, ideal);
+  drawProviderBar(c, viable, amount, ideal);
   drawHistorySection(c);
 }
 
@@ -257,10 +333,10 @@ function drawProviderBar(c, rows, amt, ideal){
 
   $("providerBar").innerHTML = `
     <svg class="chart" viewBox="0 0 ${CW} ${H}" role="img"
-         aria-label="How a ${usd(amt)} transfer to ${esc(c.country)} splits between what arrives and what each provider keeps">
+         aria-label="How a ${usdPrecise(amt)} transfer to ${esc(c.country)} splits between what arrives and what each provider keeps">
       ${bars}
     </svg>
-    <p class="caption">Each bar is a ${usd(amt)} transfer to ${esc(c.country)}. The dark part is what
+    <p class="caption">Each bar is a ${usdPrecise(amt)} transfer to ${esc(c.country)}. The dark part is what
       arrives. The red part is what the provider keeps.</p>`;
 }
 

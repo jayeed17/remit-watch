@@ -30,7 +30,7 @@
     <div class="amtcustom">
       <label for="amount">Or type a different amount</label>
       <span class="box"><span aria-hidden="true">$</span>
-        <input id="amount" type="number" inputmode="numeric" min="10" max="5000" step="10" value="500"
+        <input id="amount" type="number" inputmode="decimal" min="1" max="5000" step="0.01" value="500"
                aria-label="Amount in US dollars">
       </span>
     </div>
@@ -43,6 +43,16 @@
       <button type="button" class="btn" id="sortAz" aria-pressed="false">Country A–Z</button>
     </div>
     <div id="compareChart" aria-live="polite"></div>
+
+    <details class="taxinfo">
+      <summary>How to avoid the new 1% US transfer tax</summary>
+      <p>Since January 1, 2026, a US law taxes some transfers sent abroad at 1% — but only if you
+        pay with cash, a money order, or a cashier's check at a counter. Paying from a bank account,
+        a US debit or credit card, or most digital wallets is exempt. Every number on this page
+        assumes bank-account funding, so none of them include this tax — if you're paying cash,
+        add about 1% of the amount you send.
+        <a href="https://www.irs.gov/newsroom/treasury-irs-issue-proposed-regulations-on-the-new-remittance-transfer-tax-established-under-the-one-big-beautiful-bill">Read the IRS notice</a>.</p>
+    </details>
 
     <p class="note" id="note"></p>
   </div>
@@ -64,7 +74,7 @@
 
 <script src="app.js"></script>
 <script>
-let SNAP = null, amount = 500, sortMode = "expensive";
+let SNAP = null, INCENTIVES = {}, amount = 500, sortMode = "expensive";
 
 async function boot(){
   try {
@@ -72,13 +82,15 @@ async function boot(){
   } catch {
     $("loading").hidden = true; $("error").hidden = false; return;
   }
+  INCENTIVES = await fetchIncentives();
 
   applyHash();
 
   $("amtpresets").innerHTML = [100,200,500,1000].map(v => `
     <button type="button" class="btn amtbtn" data-amt="${v}" aria-pressed="${v===amount}">$${v}</button>`).join("");
   [...$("amtpresets").querySelectorAll("button")].forEach(b => b.onclick = () => setAmount(+b.dataset.amt));
-  $("amount").oninput = (e) => setAmount(+e.target.value);
+  $("amount").oninput = (e) => liveAmount(+e.target.value);
+  $("amount").onchange = (e) => setAmount(+e.target.value);
 
   const sortIds = {expensive: "sortExpensive", cheap: "sortCheap", az: "sortAz"};
   Object.entries(sortIds).forEach(([mode, id]) => $(id).onclick = () => setSort(mode));
@@ -94,24 +106,36 @@ async function boot(){
 
 // Shareable state: #AMOUNT, e.g. #1000.
 function applyHash(){
-  const m = /^#?(\d+)$/.exec(decodeURIComponent(location.hash));
+  const m = /^#?(\d+(?:\.\d+)?)$/.exec(decodeURIComponent(location.hash));
   if (!m) return;
-  amount = Math.max(10, Math.min(5000, Math.round(+m[1]) || amount));
+  amount = Math.max(1, Math.min(5000, Math.round((+m[1] || amount) * 100) / 100));
 }
 function syncHash(){
   history.replaceState(null, "", `#${amount}`);
 }
 
-function syncAmountUI(){
-  $("amount").value = amount;
+function syncAmountPresets(){
   [...$("amtpresets").querySelectorAll("button")].forEach(b => {
     b.setAttribute("aria-pressed", String(+b.dataset.amt === amount));
   });
 }
+function syncAmountUI(){
+  $("amount").value = amount;
+  syncAmountPresets();
+}
+// Only clamps + rewrites the input's own displayed value - safe from preset
+// buttons or on blur, but not on every keystroke (see index.html's copy of
+// this comment for why: it corrupts multi-digit typing).
 function setAmount(v){
   if (!Number.isFinite(v)) return;
-  amount = Math.max(10, Math.min(5000, Math.round(v)));
+  amount = Math.max(1, Math.min(5000, Math.round(v * 100) / 100));
   syncAmountUI(); render();
+}
+function liveAmount(v){
+  if (!Number.isFinite(v) || v <= 0) return;
+  amount = v;
+  syncAmountPresets();
+  render();
 }
 function setSort(mode){
   sortMode = mode;
@@ -126,12 +150,20 @@ function render(){
   syncHash();
 
   const items = SNAP.corridors.map(c => {
-    const rows = rowsFor(c, amount);
-    if (!rows.length) return null;
+    const rows = rowsFor(c, amount).filter(q => !q.impractical);
+    if (!rows.length) return null; // every provider's fee exceeds this amount there
+    const raw = rows[0];
+    const inc = incentiveFor(INCENTIVES, c.dst, raw.received, c.mid);
+    // Raw cost is always what sorting/bar-length use, so the ranking never
+    // silently shifts based on an incentive the sender might not qualify
+    // for - the after-incentive figure is informational, shown alongside.
     return {
       country: c.country,
-      displayLost: Math.max(0, Math.round(rows[0].usdLost)),
-      provider: rows[0].provider,
+      displayLost: Math.max(0, Math.round(raw.usdLost)),
+      afterIncentive: inc ? Math.max(0, Math.round(raw.usdLost - inc.usdAmt)) : null,
+      incentiveCountry: inc?.country,
+      incentiveRate: inc?.rate,
+      provider: raw.provider,
       generated: c.generated || SNAP.generated,
       rateUncertain: !!c.rate_uncertain,
       disagreementPct: c.rate_disagreement_pct,
@@ -143,29 +175,36 @@ function render(){
   else items.sort((a,b) => a.country.localeCompare(b.country));
 
   const max = Math.max(...items.map(it => it.displayLost), 1);
-  const ROW_H = 118, UNCERTAIN_EXTRA = 20, top = 10;
+  const ROW_H = 118, EXTRA = 20, top = 10;
 
   // Four short lines rather than one long sentence - "$17 lost with Western
   // Union, the best option there" visually clipped on narrow phones (no
   // scrollbar, just unreadable past the edge). Each line here comfortably
-  // fits the shared CW viewBox even for the longest provider names. Flagged
-  // corridors get a fifth line - only those rows reserve the extra height,
-  // so the common case doesn't carry wasted whitespace.
+  // fits the shared CW viewBox even for the longest provider names.
+  // Flagged/incentive corridors get extra lines - only those rows reserve
+  // the extra height, so the common case doesn't carry wasted whitespace.
   let y = top;
   const bars = items.map((it) => {
     const rowTop = y;
     const w = Math.max(2, (it.displayLost/max) * CW);
-    const barY = rowTop + 82 + (it.rateUncertain ? UNCERTAIN_EXTRA : 0);
-    const warn = it.rateUncertain
-      ? `<text x="0" y="${rowTop+92}" class="barAmt" fill="${C.keptText}">Rate uncertain — sources disagree ${it.disagreementPct}%</text>`
-      : "";
-    y += ROW_H + (it.rateUncertain ? UNCERTAIN_EXTRA : 0);
+    let extraY = 92, extras = "";
+    if (it.rateUncertain) {
+      extras += `<text x="0" y="${rowTop+extraY}" class="barAmt" fill="${C.keptText}">Rate uncertain — sources disagree ${it.disagreementPct}%</text>`;
+      extraY += EXTRA;
+    }
+    if (it.afterIncentive != null) {
+      extras += `<text x="0" y="${rowTop+extraY}" class="barAmt" fill="${C.bestText}">Raw ${esc(usd(it.displayLost))} · after ${it.incentiveRate}% incentive: ${esc(usd(it.afterIncentive))}</text>`;
+      extraY += EXTRA;
+    }
+    const extraLines = (extraY - 92) / EXTRA;
+    const barY = rowTop + 82 + extraLines * EXTRA;
+    y += ROW_H + extraLines * EXTRA;
     return `
       <text x="0" y="${rowTop+18}" class="barName">${esc(it.country)}</text>
       <text x="0" y="${rowTop+38}" class="barAmt">${esc(usd(it.displayLost))} lost</text>
       <text x="0" y="${rowTop+56}" class="barAmt">with ${esc(it.provider)}</text>
       <text x="0" y="${rowTop+74}" class="barAmt">Checked ${esc(freshness(it.generated))}</text>
-      ${warn}
+      ${extras}
       <rect x="0" y="${barY}" width="${w.toFixed(1)}" height="22" fill="${it.displayLost === max ? C.keptText : C.inkSoft}"/>`;
   }).join("");
   const H = y + 6;
@@ -173,12 +212,14 @@ function render(){
   const most = [...items].sort((a,b) => b.displayLost - a.displayLost)[0];
   $("compareChart").innerHTML = `
     <svg class="chart" viewBox="0 0 ${CW} ${H}" role="img"
-         aria-label="Comparing the cheapest available option for every country tracked, sending ${esc(usd(amount))} today">
+         aria-label="Comparing the cheapest available option for every country tracked, sending ${esc(usdPrecise(amount))} today">
       ${bars}
     </svg>
-    <p class="caption">This compares the best price available for each country, sending ${usd(amount)} right
-      now. Longer bars cost more, even with the best provider. ${esc(most?.country || "")} currently
-      costs the most.${items.some(it => it.rateUncertain) ? " Corridors marked “rate uncertain” have real disagreement between our data sources about the true exchange rate — treat those numbers as rough." : ""}</p>`;
+    <p class="caption">This compares the best price available for each country, sending ${usdPrecise(amount)} right
+      now. Bars are ranked by the raw cost, before any incentive — longer bars cost more, even with the
+      best provider. ${esc(most?.country || "")} currently costs the most.
+      ${items.some(it => it.rateUncertain) ? " Corridors marked “rate uncertain” have real disagreement between our data sources about the true exchange rate — treat those numbers as rough." : ""}
+      ${items.some(it => it.afterIncentive != null) ? " Corridors showing an “after incentive” figure only get it if the transfer qualifies (see that country's page for the eligibility rules) — a corridor can look more expensive here and still end up cheaper after an eligible incentive." : ""}</p>`;
 }
 
 boot();

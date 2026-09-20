@@ -85,7 +85,7 @@ h2{
 /* ---- amount picker ---- */
 .amtpresets{display:flex;flex-wrap:wrap;gap:.75rem;margin:0 0 1rem;padding:0}
 .amtbtn{min-width:5.5rem}
-.amtcustom{display:flex;align-items:center;gap:.6rem;font-size:1rem}
+.amtcustom{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;font-size:1rem}
 .amtcustom label{font-weight:600}
 .amtcustom .box{
   display:inline-flex;align-items:center;gap:.25rem;border:2px solid var(--ink);
@@ -114,6 +114,18 @@ h2{
   color:var(--kept-text);font-weight:600;font-size:.95rem;
 }
 
+/* ---- US remittance tax explainer ---- */
+.taxinfo{margin:1.25rem 0 0;border:2px solid var(--rule);border-radius:.6rem;padding:0 1rem}
+.taxinfo summary{
+  cursor:pointer;font-weight:700;padding:.7rem 0;min-height:48px;display:flex;
+  align-items:center;font-size:1rem;list-style:none;
+}
+.taxinfo summary::-webkit-details-marker{display:none}
+.taxinfo summary::before{content:"+ ";color:var(--ink-soft)}
+.taxinfo[open] summary::before{content:"− "}
+.taxinfo p{margin:0 0 1rem;color:var(--ink-soft);font-size:.95rem;max-width:52ch}
+.taxinfo a{font-weight:700;text-decoration:underline}
+
 /* ---- shortfall bar: the one loud picture ---- */
 .shortfall{margin:1.25rem 0 0}
 .bar{
@@ -127,6 +139,14 @@ h2{
 .legend > div{font-size:.9rem;color:var(--ink-soft)}
 .legend b{display:block;color:var(--ink);font-size:1.4rem;font-weight:700;letter-spacing:-.02em}
 .legend .loud b{color:var(--kept-text)}
+
+/* ---- receiving-country incentive: always its own box, never folded in ---- */
+.incentive{
+  margin:1rem 0 0;padding:.85rem 1rem;border:2px solid var(--best-text);border-radius:.6rem;
+  font-size:.95rem;color:var(--ink-soft);
+}
+.incentive b{color:var(--best-text)}
+.incentive .elig{display:block;margin-top:.4rem}
 
 /* ---- share link ---- */
 .share{margin:1.25rem 0 0;display:flex;align-items:center;flex-wrap:wrap;gap:.75rem 1rem}

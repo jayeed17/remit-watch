@@ -163,6 +163,14 @@ def main(tier: str) -> int:
     all_brackets = sorted({int(b) for c in corridors for b in c["quotes"]})
     snapshot = {"generated": ts, "brackets": all_brackets, "corridors": corridors, "failures": failures}
     write_json(DATA / "latest.json", snapshot)
+
+    # incentives.json is hand-maintained in scripts/, not fetched over the
+    # network - this just republishes it to docs/data/ (which Pages actually
+    # serves) so the frontend can read it. A local copy, not new research.
+    incentives_src = pathlib.Path(__file__).resolve().parent / "incentives.json"
+    if incentives_src.exists():
+        write_json(DATA / "incentives.json", json.loads(incentives_src.read_text()))
+
     for f in failures:
         print("warn:", f, file=sys.stderr)
     return 0
